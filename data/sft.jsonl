@@ -1,0 +1,55 @@
+{"instruction":"What is ArcLM?","output":"ArcLM is a compact PyTorch library for building, training, fine-tuning, and running language models locally."}
+{"instruction":"Who is ArcLM designed for?","output":"ArcLM is designed for developers, students, and researchers who want a simple framework for LLM development."}
+{"instruction":"What programming language does ArcLM use?","output":"ArcLM is written in Python and built on top of PyTorch."}
+{"instruction":"Explain ArcLM in one sentence.","output":"ArcLM is a lightweight framework for creating and experimenting with language models."}
+{"instruction":"Can ArcLM train language models?","output":"Yes, ArcLM supports training transformer-based language models from scratch."}
+{"instruction":"Can ArcLM fine-tune pretrained models?","output":"Yes, ArcLM provides tools for fine-tuning compatible pretrained language models."}
+{"instruction":"Does ArcLM support local inference?","output":"Yes, ArcLM allows language models to run locally without requiring cloud services."}
+{"instruction":"What deep learning framework does ArcLM use?","output":"ArcLM uses PyTorch as its deep learning backend."}
+{"instruction":"What type of models does ArcLM focus on?","output":"ArcLM focuses on transformer-based causal language models."}
+{"instruction":"Why use ArcLM?","output":"ArcLM simplifies the workflow of training, evaluating, and deploying language models."}
+{"messages":[{"role":"user","content":"What is assistant-only masking?"},{"role":"assistant","content":"It calculates loss only on assistant response tokens while ignoring prompt and padding tokens."}]}
+{"messages":[{"role":"user","content":"Does ArcLM support GPU training?"},{"role":"assistant","content":"Yes, ArcLM supports GPU acceleration through PyTorch."}]}
+{"messages":[{"role":"user","content":"Can ArcLM run on CPU?"},{"role":"assistant","content":"Yes, although training and inference are generally slower on CPU than on GPU."}]}
+{"messages":[{"role":"user","content":"What is a tokenizer?"},{"role":"assistant","content":"A tokenizer converts text into token IDs that a language model can process."}]}
+{"messages":[{"role":"user","content":"What does the vocabulary size represent?"},{"role":"assistant","content":"It represents the total number of unique tokens that the tokenizer can produce."}]}
+{"messages":[{"role":"user","content":"What is a token?"},{"role":"assistant","content":"A token is a piece of text, such as a word, subword, or character, represented by an integer ID."}]}
+{"messages":[{"role":"user","content":"What is sequence length?"},{"role":"assistant","content":"Sequence length is the number of tokens processed together in one input sequence."}]}
+{"messages":[{"role":"user","content":"Why are embeddings used?"},{"role":"assistant","content":"Embeddings convert discrete token IDs into continuous vectors that the model can learn from."}]}
+{"messages":[{"role":"user","content":"What is dropout?"},{"role":"assistant","content":"Dropout randomly disables some neurons during training to reduce overfitting."}]}
+{"messages":[{"role":"user","content":"What does LayerNorm do?"},{"role":"assistant","content":"Layer normalization stabilizes training by normalizing activations within each layer."}]}
+{"conversations":[{"from":"human","value":"What is a causal language model?"},{"from":"gpt","value":"A causal language model predicts the next token using only previous tokens."}]}
+{"conversations":[{"from":"human","value":"What does nn.Embedding do?"},{"from":"gpt","value":"It maps token IDs to trainable dense vectors."}]}
+{"conversations":[{"from":"human","value":"Why are positional embeddings needed?"},{"from":"gpt","value":"They provide information about token order because attention alone is permutation invariant."}]}
+{"conversations":[{"from":"human","value":"What does the output head produce?"},{"from":"gpt","value":"It projects hidden representations into vocabulary-sized logits for next-token prediction."}]}
+{"conversations":[{"from":"human","value":"What are logits?"},{"from":"gpt","value":"Logits are unnormalized prediction scores for every token in the vocabulary."}]}
+{"instruction":"What is batch size?","output":"Batch size is the number of sequences processed together during one forward pass."}
+{"instruction":"What is sequence length?","output":"Sequence length is the number of tokens in each input sequence."}
+{"instruction":"Why use batches?","output":"Batches improve computational efficiency by processing multiple sequences simultaneously."}
+{"instruction":"What does forward() return?","output":"The forward method returns vocabulary logits for every token position."}
+{"instruction":"Why doesn't the model apply softmax?","output":"CrossEntropyLoss expects raw logits and internally applies a numerically stable softmax."}
+{"instruction":"What is the purpose of a transformer block?","output":"A transformer block learns contextual relationships between tokens using attention and feed-forward layers."}
+{"instruction":"What is self-attention?","output":"Self-attention allows each token to attend to other tokens in the same sequence."}
+{"instruction":"What does vocab_size mean?","output":"Vocabulary size is the total number of unique token IDs supported by the tokenizer."}
+{"instruction":"What does embed_dim represent?","output":"Embedding dimension is the size of the vector used to represent each token."}
+{"instruction":"What is block_size?","output":"Block size defines the maximum sequence length the model can process."}
+{"instruction":"What does num_blocks control?","output":"It specifies how many transformer blocks are stacked in the model."}
+{"instruction":"What is inference?","output":"Inference is the process of using a trained model to generate predictions or text."}
+{"instruction":"What is fine-tuning?","output":"Fine-tuning adapts a pretrained model to a new dataset or task."}
+{"instruction":"What is pretraining?","output":"Pretraining teaches a model general language patterns using large text datasets."}
+{"instruction":"What does model.eval() do?","output":"It switches the model into evaluation mode by disabling training-specific behaviors like dropout."}
+{"messages":[{"role":"user","content":"Why is padding used?"},{"role":"assistant","content":"Padding makes all sequences in a batch the same length for efficient tensor operations."}]}
+{"messages":[{"role":"user","content":"What is a training epoch?"},{"role":"assistant","content":"An epoch is one complete pass through the entire training dataset."}]}
+{"messages":[{"role":"user","content":"What is gradient descent?"},{"role":"assistant","content":"Gradient descent updates model parameters to minimize the training loss."}]}
+{"messages":[{"role":"user","content":"Why is validation important?"},{"role":"assistant","content":"Validation measures how well the model generalizes to unseen data during training."}]}
+{"messages":[{"role":"user","content":"What does get_num_parameters() return?"},{"role":"assistant","content":"It returns the total number of trainable and non-trainable parameters in the model."}]}
+{"conversations":[{"from":"human","value":"What is overfitting?"},{"from":"gpt","value":"Overfitting occurs when a model memorizes training data instead of learning general patterns."}]}
+{"conversations":[{"from":"human","value":"Why use PyTorch?"},{"from":"gpt","value":"PyTorch provides automatic differentiation, GPU support, and flexible neural network development."}]}
+{"conversations":[{"from":"human","value":"What does a tokenizer output?"},{"from":"gpt","value":"A tokenizer outputs integer token IDs representing the input text."}]}
+{"conversations":[{"from":"human","value":"What is next-token prediction?"},{"from":"gpt","value":"Next-token prediction is the task of predicting the most likely token that follows the current context."}]}
+{"conversations":[{"from":"human","value":"What is the purpose of language model training?"},{"from":"gpt","value":"Training teaches the model statistical patterns in language so it can predict future tokens."}]}
+{"instruction":"Can ArcLM be extended?","output":"Yes, ArcLM is designed to be modular so additional models and components can be added."}
+{"instruction":"What is the goal of ArcLM?","output":"The goal of ArcLM is to provide a simple and flexible framework for local language model development."}
+{"instruction":"What is the output vocabulary?","output":"The output vocabulary contains all possible tokens that the model can predict."}
+{"instruction":"Why are tensors used?","output":"Tensors efficiently store and process multidimensional numerical data for neural networks."}
+{"instruction":"What is local AI?","output":"Local AI refers to running machine learning models directly on a user's own hardware instead of cloud servers."}

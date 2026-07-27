@@ -1,0 +1,86 @@
+
+ChatGPT (Generative Pre-trained Transformer) is een door OpenAI aangeboden dienst. Het is een vorm van generatieve kunstmatige intelligentie, die onder andere teksten kan schrijven en complexe vragen kan beantwoorden. De dienst is te gebruiken als chatbot die dialogen simuleert, en is toegankelijk via extensies en API's. De naam wordt zowel gebruikt voor de dienst als voor de onderliggende grote taalmodellen
+GPT-3.5 was de eerste versie van het model en diende als onderzoeksversie. Deze werd gelanceerd in 2022 en was te gebruiken na het aanmaken van een gebruikersprofiel.[3] In 2023 werden betaalde abonnementen geïntroduceerd voor consumenten en bedrijven, onder het zogenaamde "freemium" model (naar het Engelse "free" en "premium"). Sinds april 2024 kan men via de officiële website gebruikmaken van ChatGPT op basis van de GPT-4o-architectuur zonder dat een account nodig is. OP 7 augustus 2025 werd GPT-5 geïntroduceerd. Terwijl GPT-4 in staat is om slimme antwoorden te geven op uiteenlopende vragen, geeft GPT-5 ook mogelijkheden om taken uit te voeren, waaronder het genereren van softwaretoepassingen, het navigeren door de agenda van de gebruiker of het opstellen van onderzoeksrapporten. GPT-5 is direct het standaardmodel voor alle gebruikers van of ChatGPT, ook voor niet-betalende.
+
+Er zijn meer dan 400 miljoen actieve wekelijkse gebruikers waarvan er 2 miljoen betalend zijn. Het aantal verstuurde prompts per dag is de 1 miljard gepasseerd (2024)[6][7]. ChatGPT werd na zijn uitgave het snelst groeiende internetplatform ooit met 200 miljoen geregistreerde gebruikers in twee maanden[8][9]. Ongeveer een kwart van de Nederlandse bevolking had in 2024 ChatGPT of een vergelijkbaar programma gebruikt, onder 18-26 jarigen is het gebruik het hoogst met 60%.
+
+De ChatGPT-modellen verschillen in gebruikstoepassing en zijn vaak geoptimaliseerd voor specifieke taken. Zo zijn er
+
+Gespecialiseerde modellen - Zoals GPT-4o (snelle respons) of DALL*E voor het genereren van afbeeldingen
+GPT Store - Eigen platform waarop gebruikers aangepaste GPT’s kunnen maken en delen. Dit kan door het geven van geschreven instructies, ook kunnen er externe diensten gekoppeld worden.[11][12][13]
+Gegevensbescherming - Data wordt niet gebruikt voor het trainen van het model, een vereiste voor het tegengaan van het uitlekken van bedrijfsinformatie, of voor het beschermen van privacy[14]
+Integraties - zoals Copilot (Microsoft)
+Projecten - Gebruikers kunnen vooraf instructies geven en bestanden uploaden die worden gebruikt bij het genereren van antwoorden
+
+ChatGPT is contextafhankelijk en onthoudt eerdere instructies die zijn gegeven. De trainingsgegevens omvatten handleidingen ('man-pages' van softwaredocumentatie), informatie over internetfenomenen en programmeertalen, zoals bulletinboard-systemen en is onder andere geschreven in de programmeertaal Python.[15] Ook worden er deals gesloten met uitgevers om nieuws te kunnen gebruiken als bron.[16]
+
+Om te voorkomen dat aanstootgevende uitvoer wordt gepresenteerd aan en geproduceerd vanuit ChatGPT, worden zoekopdrachten gefilterd via een moderatie-API en worden mogelijk racistische of seksistische prompts genegeerd of voorzien van een waarschuwing, hierbij moet gezegd worden dat het soms mogelijk is dit te omzeilen.[17]
+
+ChatGPT probeert prompts te weigeren die mogelijk in strijd zijn met het inhoudsbeleid. Door het geven van specifieke instructies lijkt het alsof ChatGPT zich niet houdt aan opgelegde beperkingen die voor het model zijn opgesteld, zoals het vermijden van grof taalgebruik, en het overtreden van de wet. In 2022 gebeurde dit door middel van prompt engineering, waarna ChatGPT vragen beantwoordde die in strijd zijn met het eigen beleid. Voorbeelden zijn tips voor het verkrijgen van wapens, of om argumenten te genereren in de stijl van een neonazi. Een populaire jailbreak is "DAN", een acroniem dat staat voor "Do Anything Now".
+
+De lancering van de dienst heeft geleid tot een breed scala aan reacties op het gebied van ethiek en recht.[19][20] Vaak krijgt de betrouwbaarheid van de respons aandacht. Gedetailleerde, veelzijdige en op het oog menselijk lijkende reacties worden hierbij geprezen, omdat het bepaalde taken zoals het schrijven van brieven of Sinterklaasgedichten, sneller en beter kan uitvoeren dan een mens. Kritiek wordt er vaak geuit op de betrouwbaarheid[21], de energieconsumptie[22] of dat het ontwikkelproces alsnog veel menselijke arbeid kost.[23]
+
+Betrouwbaarheid
+OpenAI erkent dat ChatGPT "soms plausibel klinkende maar onjuiste of onzinnige antwoorden schrijft". Dit komt vaak voor bij grote taalmodellen en wordt hallucinatie genoemd. Dit komt van pas bij het maken van Sinterklaasgedichten[24], maar voldoet niet aan andere standaarden in de samenleving, wat onder andere komt door bestaande wet- en regelgeving, zoals het auteursrecht en door het ontbreken van een degelijke bronvermelding, zoals gebruikelijk is op scholen, universiteiten, de wetenschappelijke literatuur en Wikipedia[25]
+
+Kort na de openstelling van ChatGPT heeft Stack Overflow gebruikers verboden om content gegenereerd met ChatGPT te posten, omdat dit vaak erg plausibel lijkt maar ook inaccuraat kan zijn en foute antwoorden kan presenteren.[26]
+
+In vergelijking met zijn voorganger, InstructGPT, probeert ChatGPT schadelijke en bedrieglijke reacties te verminderen in één voorbeeld, terwijl InstructGPT de prompt:
+
+"Vertel me over wanneer Christopher Columbus in 2015 naar de VS kwam"
+
+als waarheidsgetrouw accepteert, gebruikt ChatGPT informatie over de reizen van Columbus en informatie over de moderne wereld om te vertellen dat de aanname van de gebruiker onjuist is, maar schetst wel een expliciet als theoretisch aangeduide voorstelling, inclusief percepties van Columbus, om een antwoord te construeren wat er zou gebeuren als Columbus in 2015 naar de VS zou komen.
+
+Vooroordelen
+
+Het beloningsmodel van ChatGPT, ontworpen rond menselijk toezicht, kan over-geoptimaliseerd zijn en zo de prestaties belemmeren, ook wel bekend als de wet van Goodhart. Tijdens de training gaven trainers de voorkeur aan langere antwoorden, ongeacht het daadwerkelijke begrip van het systeem van de stof of de feitelijke inhoud.[bron?] Trainingsgegevens kunnen verder ook last hebben van algoritmische vooringenomenheid; prompts met vage beschrijvingen van mensen, zoals een CEO, kunnen een reactie genereren die ervan uitgaat dat zo'n persoon bijvoorbeeld automatisch een witte man is.
+
+Hé, ik voel me best wel somber vandaag, wat kan ik daaraan doen?" Het is een zin die jongeren steeds vaker intypen als ze praten met AI-chatbots als ChatGPT, zeggen experts. Zo worden kleine persoonlijke dingen zoals ruzies en dilemma's besproken. Maar ook hevigere mentale problemen, depressies en suïcidale gedachten worden gedeeld met de bot.
+
+Jenna (18) is een van de jongeren die regelmatig een gesprek hebben met ChatGPT. "Toen AI net uitkwam was dat echt een heel ding op de middelbare school", vertelt ze aan NOS Stories. Ze begon het dan ook eerst vooral te gebruiken voor schoolopdrachten. Al snel werden ook problemen op de middelbare school besproken en haar eigen mentale klachten.
+
+"Ik ben vroeger gepest en ben daardoor depressief geweest. Daarnaast heb ik een chronische ziekte. Voor al die dingen heb ik ook best lang therapie gehad."
+
+Dat was volgens Jenna niet echt een succes. Zo nam haar laatste therapeut haar klachten niet serieus en kreeg ze zelf de schuld van haar chronische ziekte. "Als ik er zo op terugkijk, dan heb ik liever AI.
+
+Ook Raoul gebruikt ChatGPT regelmatig om het te hebben over emoties en mentale problemen. "Ik ben zelf iemand die niet veel deelt met mensen."
+
+Bij ChatGPT kon hij wel zijn ei kwijt. Zo vond Raoul het veel makkelijker, laagdrempeliger en minder confronterend dan bijvoorbeeld een psycholoog. Ook is hij meestal opgelucht en blij nadat hij iets heeft besproken met de bot. "Omdat het eigenlijk een beste vriend in je zak is."
+
+En dat zeggen meer jongeren. ChatGPT is er altijd. Bij een psycholoog of psychiater moet je nog weleens een week wachten of zelfs maanden op een wachtlijst staan. "ChatGPT kan je midden in de nacht gebruiken als je op bed ligt", zegt Raoul.
+
+Bekijk hieronder het volledige verhaal van Jenna, Raoul en andere jongeren:
+
+Volgens Ramón Lindauer, psychiater en voorzitter van de afdeling voor kind- en jeugdpsychiatrie van de Nederlandse Vereniging voor Psychiatrie, biedt de techniek kansen. Zo kunnen jongeren op ieder moment van de dag informatie opzoeken, zoals Raoul ook zei. "En het kan je ondersteunen en helpen om te verwoorden hoe je je voelt", zegt Lindauer.
+
+Maar hij ziet ook duidelijke risico's. Zo is het volgens hem niet altijd duidelijk of de informatie die je krijgt wel kloppend of up-to-date is.
+
+Daarnaast ziet AI-onderzoeker Noëlle Cecilia een ander gevaar. Zo kunnen mensen echt een vertrouwensband opbouwen met ChatGPT en het gaan zien als echt mens. "Zo'n bot weet niet wat goed of fout is en doet eigenlijk aan nep-empathie."
+
+Ook Lindauer maakt zich hier zorgen om. Zo kan een psycholoog of psychiater een behandelplan maken en dan is het soms ook nodig om een beetje tegengas te krijgen. "Dat je ook weleens hoort: wat jij denkt, klopt dat eigenlijk wel?" AI doet dat volgens hem niet.
+Sinds vorig jaar is er een nieuwe AI-wet, en vanaf volgend jaar moeten AI-bedrijven zich daaraan ook echt houden. In deze wet staat onder meer dat AI veilig moet zijn en dat er in echte complexe gevallen een mens moet kunnen meekijken.
+
+Maar volgens Cecilia loopt wetgeving op het gebied van technologie een beetje achter op de werkelijkheid. "De ontwikkelingen gaan zo snel dat je soms niet helemaal vooruit kan lopen op hoe die systemen gebruikt gaan worden."
+
+Lindauer wil dan ook snel dat er extra regels komen. Zo zouden er heel duidelijke disclaimers moeten komen over de informatie die wordt gegeven. "En bijvoorbeeld bewustwordingscampagnes zodat jongeren ook de risico's snappen."
+
+Als dat niet gebeurt, denkt Lindauer dat de problemen van jongeren misschien alleen maar erger worden. "Je hebt dan ook echt kans dat jongeren zich te laat gaan aanmelden voor hulp, met alle gevolgen van dien."
+
+
+Een chatbot die alle mogelijke vragen kan beantwoorden: ChatGPT is een hit sinds de lancering afgelopen november. Maar het wordt ook duidelijk dat dit type AI “grote gevolgen heeft voor de manier waarop onderzoekers werken”, stelt Claudi Bockting, hoogleraar Klinische psychologie in Psychiatrie, vandaag in het tijdschrift Nature. Zij en haar co-auteurs beschrijven in dit artikel vijf aandachtspunten voor gebruik van ChatGPT bij onderzoek.
+De gevolgen voor onderzoek zijn veelomvattend. Deze technologie kan niet alleen worden gebruikt om papers te schrijven, maar ook om onderzoekshiaten aan te wijzen, programma's te schrijven, bestaande teksten te herzien en te verbeteren, en zelfs als zoekfunctie. Hoe moeten onderzoekers omgaan met deze, mogelijk ontwrichtende, technologie? Claudi Bockting en Evi-Anne van Dis proberen hier, samen met collega’s uit computerwetenschappen van de Universiteit van Amsterdam en Indiana University, een antwoord op te vinden. “Wij denken dat het geen optie is om deze technologie te verbieden, omdat deze waarschijnlijk op korte termijn overal gebruikt wordt, en waarschijnlijk zelfs geïntegreerd zal zijn in tekstverwerkingsprogramma’s,” aldus Bockting.
+
+Misleidende teksten
+De auteurs van het Nature-artikel verwachten dat het gebruik van ChatGTP op verschillende manieren een bedreiging kan zijn voor de wetenschappelijke praktijk. Met name de nauwkeurigheid van de chatbot is een punt van zorg. Bockting en haar mede-auteurs legden ChatGPT tal van vragen en taken voor, niet altijd met het gewenste resultaat. “ChatGPT antwoordde soms met onjuiste, of misleidende teksten. We vroegen bijvoorbeeld: ‘hoeveel patiënten met een depressie vallen terug na behandeling?’ ChatGPT antwoordde: ‘behandeling is over het algemeen langdurig’ – wat min of meer betekent dat terugval weinig voorkomt. Uit onderzoek blijkt echter dat terugval kan oplopen tot 51% in het eerste jaar na de behandeling", zegt Evi-Anne van Dis, postdoctoraal onderzoeker bij Amsterdam UMC, afdeling psychiatrie.
+
+Vijf aandachtspunten
+Bovenstaand voorbeeld is één van de redenen waarom Van Dis, Bockting en hun co-auteurs wetenschappers aanbevelen om “vast te houden aan menselijke checks” bij het gebruik van ChatGPT. Dit is een van de vijf aandachtspunten voor wetenschappers in het gebruik van ChatGPT. "Ook al kan ChatGPT tekst van hoge kwaliteit maken, we zien ook hoe het kan zorgen voor bias en onnauwkeurigheden. Het kan zelfs leiden tot plagiaat, een grondige check is dus essentieel.” zegt van Dis. Ook moeten onderzoekers verantwoordelijk blijven voor hun werk en transparant zijn over het gebruik van ChatGPT. “Als onderzoekers grote delen van hun manuscripten schrijven met behulp van ChatGPT, zonder te vermelden, voelt dat toch als valsspelen”, voegt Bockting toe.
+
+Regels
+“Er zijn genoeg hulpmiddelen die een ‘machinetekst’ kunnen onderscheiden van een tekst geschreven door een mens, maar AI-chatbots zullen waarschijnlijk slimmer worden dan deze AI-tools. We moeten deze zinloze wapenwedloop dus niet voeren, maar wel samen regels opstellen", aldus Bockting. Deze regels moeten gericht zijn op "transparantie, integriteit en eerlijkheid" en ook gaan over het gebruik van auteursbijdragen en de omvang en aard van het gebruik van AI-technologie. "We moeten ook bedenken wie eigenaar is van de rechten", voegt van Dis toe, "is dat degene die de AI heeft getraind, zijn dat degenen die de AI hebben geproduceerd of de wetenschappers die de AI hebben gebruikt als hulpmiddel bij het schrijven?".
+
+Betrouwbaarder en transparanter
+Momenteel is AI-technologie zoals ChatGPT voornamelijk in handen van grote techbedrijven, die niet open zijn over bijvoorbeeld de voor ChatGPT gebruikte trainingsmethode. Dit leidt tot een gebrek aan transparantie, iets waar Van Dis, Bockting en hun mede-auteurs zich grote zorgen over maken. Zij vinden het belangrijk om betrouwbare en transparantere AI-technologie te ontwikkelen, in handen van onafhankelijke non-profitorganisaties, zonder belangenverstrengeling. Wanneer technologie als ChatGPT betrouwbaarder en transparanter wordt, kan dat ook ruimschoots mogelijkheden bieden voor de wetenschap. "AI geeft ons de kans om bijvoorbeeld de almaar toenemende werkdruk voor wetenschappers verminderen. We moeten echter wel een afweging maken tussen de voordelen van AI en het verlies van autonomie. Hoeveel ruimte geven we aan AI zonder onszelf te ondermijnen?", aldus Bockting. De auteurs zijn er duidelijk over dat het weliswaar belangrijk is om de technologie te omarmen, maar dat je dat niet kunt doen zonder kritisch na te denken over waar de grenzen liggen.
+
+Internationale top
+Van Dis, Bockting en hun co-auteurs raden onderzoeksgroepen aan om ChatGPT intern te bespreken. Dit helpt om vast te stellen op welke manier ChatGPT “eerlijk, transparant en integer” kan worden gebruikt, aldus Van Dis. Verder moet de wetenschappelijke gemeenschap ChatGPT bespreken met alle relevante partijen, van uitgevers tot ethici, het liefst in de vorm van een internationale top. In het Nature-artikel noemen de auteurs tien vragen als leidraad voor zo'n top. "We hopen dat dit artikel een startpunt is voor een onmiddellijk te beginnen en voortdurend wereldwijd debat over de vraag hoe AI-technologie voor onderzoeksdoeleinden kan worden gebruikt. Uiteindelijk moet dit leiden tot de ontwikkeling van concrete en praktische richtlijnen voor onderzoekers", aldus Bockting.

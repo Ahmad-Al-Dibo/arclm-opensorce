@@ -1,0 +1,4 @@
+{"id":"sft_definition","prompt":"Explain supervised fine-tuning in one sentence.","expected_keywords":["pretrained","instruction","response"]}
+{"id":"assistant_mask","prompt":"What is assistant-only loss masking?","expected_keywords":["loss","assistant","tokens"]}
+{"id":"continued_pretraining","prompt":"What is continued pre-training?","expected_keywords":["plain text","next-token","domain"]}
+{"id":"sft_vs_continue","prompt":"What is the difference between SFT and continued pre-training?","expected_keywords":["instruction","plain text","training"]}

@@ -1,0 +1,27 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include CONTRIBUTING.md
+include PROJECT_MAP.md
+include requirements.txt
+include requirements-dev.txt
+recursive-include docs *.md
+recursive-include templates *.html
+recursive-include arclm/templates *.html
+include examples/README.md
+include examples/01_quickstart.py
+include examples/02_tokenization.py
+include examples/03_data_processing.py
+include examples/04_pretraining.py
+include examples/05_continue_training.py
+include examples/06_finetuning.py
+include examples/07_native_sft.py
+include examples/08_huggingface_sft.py
+include examples/09_lora_sft.py
+include examples/10_preprocess_pipeline.py
+include examples/11_inference.py
+include examples/12_smart_loader.py
+include examples/13_diagnostics.py
+include examples/14_custom_trainer.py
+include examples/15_custom_hf_sft_loop.py
+recursive-include examples/qwen3_0_6b_sft *.py *.md *.jsonl
