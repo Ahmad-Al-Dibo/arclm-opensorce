@@ -1,0 +1,103 @@
+site_name: ArcLM
+site_description: Data-first workflows for causal language models.
+repo_url: https://github.com/ahmad-al-dibo/arclm
+exclude_docs: |
+  versions/**
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+nav:
+  - Home: index.md
+  - Introduction: introduction.md
+  - Why ArcLM?: why-arclm.md
+  - Project Vision: project-vision.md
+  - Installation: installation.md
+  - Quick Start: quick-start.md
+  - Core Concepts:
+      - Data-First Workflows: core-concepts/data-first-workflows.md
+      - Datasets: core-concepts/datasets.md
+      - Records and Schemas: core-concepts/records-and-schemas.md
+      - Preprocessing: core-concepts/preprocessing.md
+      - Validation: core-concepts/validation.md
+      - Tokenization: core-concepts/tokenization.md
+      - Models: core-concepts/models.md
+      - Training: core-concepts/training.md
+      - Evaluation: core-concepts/evaluation.md
+      - Inference: core-concepts/inference.md
+  - Data Guide:
+      - Loading Data: data-guide/loading-data.md
+      - Cleaning Data: data-guide/cleaning-data.md
+      - Transforming Data: data-guide/transforming-data.md
+      - Filtering Data: data-guide/filtering-data.md
+      - Formatting Conversations: data-guide/formatting-conversations.md
+      - Preparing SFT Data: data-guide/preparing-sft-data.md
+      - Dataset Validation: data-guide/dataset-validation.md
+      - Dataset Splitting: data-guide/dataset-splitting.md
+      - Saving Processed Data: data-guide/saving-processed-data.md
+      - Reproducible Pipelines: data-guide/reproducible-pipelines.md
+  - Model Guide:
+      - Supported Architectures: model-guide/supported-architectures.md
+      - Supported Models: model-guide/supported-models.md
+      - Loading Models: model-guide/loading-models.md
+      - Loading Tokenizers: model-guide/loading-tokenizers.md
+      - Device Selection: model-guide/device-selection.md
+      - Precision: model-guide/precision.md
+      - Checkpoints: model-guide/checkpoints.md
+      - Known Limitations: model-guide/known-limitations.md
+  - Training Guide:
+      - Training Configuration: training-guide/training-configuration.md
+      - Pretraining: training-guide/pretraining.md
+      - Fine-Tuning: training-guide/fine-tuning.md
+      - Supervised Fine-Tuning: training-guide/supervised-fine-tuning.md
+      - Checkpointing: training-guide/checkpointing.md
+      - Resuming Training: training-guide/resuming-training.md
+      - Metrics: training-guide/metrics.md
+      - Troubleshooting: training-guide/troubleshooting.md
+  - Evaluation Guide: evaluation-guide.md
+  - Inference Guide: inference-guide.md
+  - Data at Scale: data-at-scale.md
+  - Tokenization Workflows: tokenization-workflows.md
+  - Workflow Runner: workflow-runner.md
+  - Security: security.md
+  - Release Readiness: release-readiness.md
+  - Examples:
+      - Prepare a Text Dataset: examples/prepare-text-dataset.md
+      - Validate a Dataset: examples/validate-dataset.md
+      - Tokenize a Dataset: examples/tokenize-dataset.md
+      - Load a Supported Model: examples/load-supported-model.md
+      - Run Inference: examples/run-inference.md
+      - Fine-Tune a Causal Model: examples/fine-tune-causal-model.md
+      - Evaluate a Model: examples/evaluate-model.md
+      - Complete End-to-End Workflow: examples/end-to-end-workflow.md
+  - API Reference:
+      - Overview: api-reference/index.md
+      - Data API: api-reference/data-api.md
+      - Tokenization API: api-reference/tokenization-api.md
+      - Model API: api-reference/model-api.md
+      - Training API: api-reference/training-api.md
+      - Evaluation API: api-reference/evaluation-api.md
+      - Inference API: api-reference/inference-api.md
+      - Configuration API: api-reference/configuration-api.md
+      - Exceptions: api-reference/exceptions.md
+  - CLI Reference: cli-reference.md
+  - Configuration Reference: configuration-reference.md
+  - Supported Models: supported-models.md
+  - Migration Guide: migration-guide.md
+  - Troubleshooting: troubleshooting.md
+  - FAQ: faq.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md
+  - Roadmap: roadmap.md
+  - Audit:
+      - Repository Audit: audit/repository-audit.md
+      - Public API Inventory: audit/public-api-inventory.md
+      - Documentation Gaps: audit/documentation-gaps.md
+      - Production Readiness: production-readiness.md

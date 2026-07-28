@@ -1,446 +1,609 @@
-"""
-ArcLM Command-Line Interface (CLI)
+"""ArcLM command-line interface."""
 
-Provides command-line tools for training, evaluation, and generation.
-
-Available Commands:
-  - arclm train    : Train a model from scratch or fine-tune
-  - arclm eval     : Evaluate model performance
-  - arclm generate : Generate text from a trained model
-  - arclm --run simple-interface : Start the simple web interface
-
-Usage:
-  arclm train --config config.yaml --data data.txt
-  arclm eval --model models/model.pth --data test.txt
-  arclm generate --model models/model.pth --prompt "Hello"
-  python -m arclm --run simple-interface
-"""
+from __future__ import annotations
 
 import argparse
-import sys
 import json
+import sys
 from pathlib import Path
-from typing import Optional
-import torch
+from typing import Any, Iterable
 
-from arclm import (
-    Config,
-    UnifiedPipeline,
-    calculate_metrics,
-    export_metrics_to_json,
-    export_metrics_to_markdown,
-    load_model,
-    create_tokenizer,
-    TextDataset,
-    create_dataloader,
-)
-from arclm.config_loader import load_config_yaml, load_config_json
-
-
-def create_train_parser(subparsers):
-    """Create parser for arclm train command"""
-    parser = subparsers.add_parser(
-        "train",
-        help="Train a model from scratch or fine-tune",
-        description="Train ArcLM model with configuration file or CLI arguments"
-    )
-    
-    # Config input
-    parser.add_argument(
-        "--config", type=str, default=None,
-        help="Path to config file (YAML or JSON) - overrides CLI args"
-    )
-    
-    # Model config
-    parser.add_argument("--embed-dim", type=int, default=128, help="Embedding dimension")
-    parser.add_argument("--num-blocks", type=int, default=4, help="Number of transformer blocks")
-    parser.add_argument("--block-size", type=int, default=512, help="Context window size")
-    parser.add_argument("--num-heads", type=int, default=4, help="Number of attention heads")
-    parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate")
-    
-    # Training config
-    parser.add_argument("--batch-size", type=int, default=16, help="Batch size")
-    parser.add_argument("--epochs", type=int, default=5, help="Number of epochs")
-    parser.add_argument("--mode", type=str, default="pre_training",
-                        choices=["pre_training", "fine_tuning", "instruction_tuning"],
-                        help="Training mode")
-    
-    # Data & checkpoint
-    parser.add_argument("--data", type=str, required=True, help="Path to training data file")
-    parser.add_argument("--output", type=str, default="models/trained_model.pth",
-                        help="Output model checkpoint path")
-    parser.add_argument("--pretrained", type=str, default=None,
-                        help="Path to pre-trained model (for fine-tuning)")
-    
-    # Logging & tracking
-    parser.add_argument("--experiment", type=str, default=None,
-                        help="Experiment name (for tracking)")
-    parser.add_argument("--log-dir", type=str, default="logs",
-                        help="Directory for logs and reports")
-    
-    parser.set_defaults(func=train_command)
-    return parser
+from . import __version__
+from .config import create_config
+from .config_loader import load_config
+from .data_processor import DataProcessor
+from .data_pipeline import DataPipeline
+from .data_quality import analyze_dataset, shard_dataset, split_dataset
+from .data_sources import open_dataset
+from .exceptions import ArcLMError, ConfigurationError, DatasetValidationError, ModelLoadError, OptionalDependencyError, TrainingError, UnsupportedModelError
+from .logging import configure_logging
+from .models import inspect_model_support
+from .pipeline import train_model
+from .reproducibility import fingerprint
+from .cache import clear_cache, inspect_cache
+from .runs import inspect_run, list_runs
+from .schemas import validate_records
+from .supported_models import get_supported_models
+from .workflow import run_workflow
 
 
-def create_eval_parser(subparsers):
-    """Create parser for arclm eval command"""
-    parser = subparsers.add_parser(
-        "eval",
-        help="Evaluate model performance",
-        description="Evaluate trained model on validation/test data"
-    )
-    
-    parser.add_argument("--model", type=str, required=True,
-                        help="Path to trained model checkpoint")
-    parser.add_argument("--data", type=str, required=True,
-                        help="Path to evaluation data")
-    parser.add_argument("--config", type=str, default=None,
-                        help="Path to config file (if not in model checkpoint)")
-    parser.add_argument("--output", type=str, default="metrics_report.json",
-                        help="Output metrics file")
-    parser.add_argument("--batch-size", type=int, default=32,
-                        help="Batch size for evaluation")
-    parser.add_argument("--device", type=str, default="auto",
-                        choices=["cpu", "cuda", "auto"],
-                        help="Device to use for evaluation")
-    
-    parser.set_defaults(func=eval_command)
-    return parser
+EXIT_SUCCESS = 0
+EXIT_GENERAL_FAILURE = 1
+EXIT_INVALID_USAGE = 2
+EXIT_CONFIGURATION_ERROR = 3
+EXIT_DATASET_VALIDATION_ERROR = 4
+EXIT_UNSUPPORTED_MODEL = 5
+EXIT_MODEL_LOAD_ERROR = 6
+EXIT_TRAINING_ERROR = 7
+EXIT_CHECKPOINT_ERROR = 8
+EXIT_OPTIONAL_DEPENDENCY_MISSING = 9
+EXIT_WORKFLOW_PARTIAL = 10
 
 
-def create_generate_parser(subparsers):
-    """Create parser for arclm generate command"""
-    parser = subparsers.add_parser(
-        "generate",
-        help="Generate text from trained model",
-        description="Use trained model to generate text"
-    )
-    
-    parser.add_argument("--model", type=str, required=True,
-                        help="Path to trained model checkpoint")
-    parser.add_argument("--prompt", type=str, required=True,
-                        help="Prompt to generate from")
-    parser.add_argument("--length", type=int, default=100,
-                        help="Number of tokens to generate")
-    parser.add_argument("--temperature", type=float, default=1.0,
-                        help="Sampling temperature (higher = more random)")
-    parser.add_argument("--num-samples", type=int, default=1,
-                        help="Number of samples to generate")
-    parser.add_argument("--device", type=str, default="auto",
-                        choices=["cpu", "cuda", "auto"],
-                        help="Device to use for generation")
-    
-    parser.set_defaults(func=generate_command)
-    return parser
+def _json_default(value: Any) -> str:
+    return str(value)
 
 
-def train_command(args):
-    """Execute training"""
-    print("\n" + "="*70)
-    print("ArcLM Training")
-    print("="*70)
-    
-    # Load config
-    if args.config:
-        print(f"\n📂 Loading config from: {args.config}")
-        if args.config.endswith(".yaml") or args.config.endswith(".yml"):
-            config = load_config_yaml(args.config)
-        elif args.config.endswith(".json"):
-            config = load_config_json(args.config)
-        else:
-            print(f"❌ Unknown config format: {args.config}")
-            return 1
-    else:
-        print("\n⚙️ Creating config from CLI arguments")
-        config = Config(
-            embed_dim=args.embed_dim,
-            num_blocks=args.num_blocks,
-            block_size=args.block_size,
-            num_heads=args.num_heads,
-            learning_rate=args.learning_rate,
-            batch_size=args.batch_size,
-        )
-    
-    print(f"✓ Config loaded: {config.embed_dim}D, {config.num_blocks} blocks")
-    
-    # Load data
-    try:
-        print(f"\n📊 Loading data from: {args.data}")
-        with open(args.data, "r") as f:
-            text = f.read()
-        
-        tokenizer = create_tokenizer("word", max_vocab=10000)
-        dataset = TextDataset(text, tokenizer, seq_len=config.block_size)
-        train_loader = create_dataloader(dataset, batch_size=config.batch_size)
-        print(f"✓ Data loaded: {len(dataset)} samples")
-    except FileNotFoundError:
-        print(f"❌ Data file not found: {args.data}")
-        return 1
-    except Exception as e:
-        print(f"❌ Error loading data: {e}")
-        return 1
-    
-    # Create pipeline
-    print(f"\n🔧 Creating pipeline (mode: {args.mode})")
-    pipeline = UnifiedPipeline(config, mode=args.mode)
-    
-    # Load pretrained if needed
-    if args.pretrained:
-        print(f"📦 Loading pre-trained model: {args.pretrained}")
-        from arclm import PreTrainedModelLoader
-        loader = PreTrainedModelLoader(args.pretrained)
-        model, _ = loader.load()
-        pipeline.build(vocab_size=tokenizer.max_vocab, pretrained_model=model)
-    else:
-        pipeline.build(vocab_size=tokenizer.max_vocab)
-    
-    print("✓ Pipeline ready")
-    
-    # Train
-    print(f"\n🚀 Starting training ({args.epochs} epochs)...")
-    try:
-        results = pipeline.train(train_loader, num_epochs=args.epochs)
-        print(f"✓ Training complete!")
-        print(f"  - Final loss: {results['final_loss']:.4f}")
-    except Exception as e:
-        print(f"❌ Training error: {e}")
-        return 1
-    
-    # Save model
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(pipeline.model.state_dict(), output_path)
-    print(f"\n💾 Model saved to: {output_path}")
-    
-    # Save config
-    config_path = output_path.parent / "config.json"
-    with open(config_path, "w") as f:
-        json.dump(config.to_dict(), f, indent=2)
-    print(f"💾 Config saved to: {config_path}")
-    
-    # Log experiment
-    if args.experiment:
-        log_dir = Path(args.log_dir) / args.experiment
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        log_file = log_dir / "training_log.json"
-        with open(log_file, "w") as f:
-            json.dump({
-                "model_path": str(output_path),
-                "config_path": str(config_path),
-                "final_loss": float(results["final_loss"]),
-                "epochs": args.epochs,
-            }, f, indent=2)
-        print(f"📝 Experiment logged: {log_file}")
-    
-    print("\n" + "="*70 + "\n")
+def _print_json(payload: Any) -> None:
+    print(json.dumps(payload, indent=2, sort_keys=True, default=_json_default))
+
+
+def _load_records(path: str, fmt: str | None = None) -> list[dict[str, Any]]:
+    return DataProcessor.load(path, format=fmt).samples
+
+
+def version_command(_args: argparse.Namespace) -> int:
+    """Print ArcLM version."""
+
+    print(__version__)
     return 0
 
 
-def eval_command(args):
-    """Execute evaluation"""
-    print("\n" + "="*70)
-    print("ArcLM Evaluation")
-    print("="*70)
-    
-    # Load model
+def info_command(args: argparse.Namespace) -> int:
+    """Print environment and package information."""
+
+    import platform
+    import torch
+
     try:
-        print(f"\n📦 Loading model from: {args.model}")
-        model = load_model(args.model, device=args.device)
-        print("✓ Model loaded")
-    except FileNotFoundError:
-        print(f"❌ Model file not found: {args.model}")
-        return 1
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
-        return 1
-    
-    # Load config
-    if args.config:
-        if args.config.endswith(".yaml"):
-            config = load_config_yaml(args.config)
-        else:
-            config = load_config_json(args.config)
+        import transformers
+        transformers_version = transformers.__version__
+    except Exception:
+        transformers_version = None
+
+    payload = {
+        "arclm": __version__,
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "torch": getattr(torch, "__version__", None),
+        "transformers": transformers_version,
+        "device": "cuda" if torch.cuda.is_available() else "cpu",
+    }
+    if args.json:
+        _print_json(payload)
     else:
-        config_path = Path(args.model).parent / "config.json"
-        if config_path.exists():
-            config = load_config_json(str(config_path))
-        else:
-            print("⚠️ Config not found, using defaults")
-            config = Config()
-    
-    # Load data
-    try:
-        print(f"\n📊 Loading data from: {args.data}")
-        with open(args.data, "r") as f:
-            text = f.read()
-        
-        tokenizer = create_tokenizer("word", max_vocab=10000)
-        dataset = TextDataset(text, tokenizer, seq_len=config.block_size)
-        val_loader = create_dataloader(dataset, batch_size=args.batch_size)
-        print(f"✓ Data loaded: {len(dataset)} samples")
-    except Exception as e:
-        print(f"❌ Error loading data: {e}")
-        return 1
-    
-    # Evaluate
-    print(f"\n📈 Evaluating...")
-    try:
-        device = torch.device("cuda" if args.device == "auto" and torch.cuda.is_available() else args.device)
-        metrics = calculate_metrics(model.model, val_loader, config, device)
-        
-        print(f"✓ Evaluation complete!")
-        print(f"  - Perplexity: {metrics.perplexity:.4f}")
-        print(f"  - Loss: {metrics.avg_loss:.4f}")
-        print(f"  - Accuracy: {metrics.accuracy:.4%}")
-        print(f"  - Tokens: {metrics.total_tokens}")
-    except Exception as e:
-        print(f"❌ Evaluation error: {e}")
-        return 1
-    
-    # Save metrics
-    output_path = Path(args.output)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    export_metrics_to_json(metrics, str(output_path))
-    print(f"\n💾 Metrics saved to: {output_path}")
-    
-    # Also save markdown report
-    report_path = output_path.with_suffix(".md")
-    export_metrics_to_markdown(metrics, str(report_path))
-    print(f"📝 Report saved to: {report_path}")
-    
-    print("\n" + "="*70 + "\n")
+        for key, value in payload.items():
+            print(f"{key}: {value}")
     return 0
 
 
-def generate_command(args):
-    """Execute text generation"""
-    print("\n" + "="*70)
-    print("ArcLM Text Generation")
-    print("="*70)
-    
-    # Load model
-    try:
-        print(f"\n📦 Loading model from: {args.model}")
-        model = load_model(args.model, device=args.device)
-        print("✓ Model loaded")
-    except FileNotFoundError:
-        print(f"❌ Model file not found: {args.model}")
-        return 1
-    except Exception as e:
-        print(f"❌ Error loading model: {e}")
-        return 1
-    
-    print(f"\n✍️ Prompt: {args.prompt}")
-    print(f"📝 Generating {args.length} tokens (temperature={args.temperature})...")
-    
-    try:
-        for i in range(args.num_samples):
-            result = model.predict(
-                args.prompt,
-                max_new_tokens=args.length,
-                temperature=args.temperature
-            )
-            
-            if args.num_samples > 1:
-                print(f"\n--- Sample {i+1} ---")
-            print(result)
-    except Exception as e:
-        print(f"❌ Generation error: {e}")
-        return 1
-    
-    print("\n" + "="*70 + "\n")
+def data_inspect_command(args: argparse.Namespace) -> int:
+    records = _load_records(args.input, args.format)
+    fields = sorted({field for row in records for field in row})
+    payload = {
+        "input": args.input,
+        "records": len(records),
+        "fields": fields,
+        "sample": records[: args.sample],
+    }
+    _print_json(payload) if args.json else print(json.dumps(payload, indent=2))
     return 0
 
 
-def run_command(args):
-    """Execute package-level runtime helpers."""
+def data_validate_command(args: argparse.Namespace) -> int:
+    records = _load_records(args.input, args.format)
+    report = validate_records(
+        records,
+        schema=args.schema,
+        strict=args.strict,
+        allow_empty=args.allow_empty,
+        check_duplicates=args.check_duplicates,
+        duplicate_field=args.duplicate_field,
+    )
+    if args.json:
+        _print_json(report.to_dict())
+    else:
+        print(report.summary())
+        for issue in report.errors[:10]:
+            print(f"error record={issue.index} field={issue.field} category={issue.category}: {issue.message}")
+        for issue in report.warnings[:10]:
+            print(f"warning record={issue.index} field={issue.field} category={issue.category}: {issue.message}")
+    return 0 if report.is_valid else 1
+
+
+def data_prepare_command(args: argparse.Namespace) -> int:
+    records = _load_records(args.input, args.format)
+    pipeline = DataPipeline(seed=args.seed)
+    if args.normalize_text:
+        pipeline.normalize_text(args.text_field)
+    if args.remove_empty:
+        pipeline.remove_empty(args.text_field)
+    if args.deduplicate:
+        pipeline.deduplicate(args.text_field)
+    if args.schema:
+        pipeline.validate(args.schema, strict=args.strict, allow_empty=args.allow_empty)
+    processed, report = pipeline.run(records)
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", encoding="utf-8") as f:
+        for row in processed:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    payload = report.to_dict()
+    payload["output"] = str(output)
+    if args.json:
+        _print_json(payload)
+    else:
+        print(report.summary())
+        print(f"wrote: {output}")
+    return 0 if report.is_valid else 1
+
+
+def data_analyze_command(args: argparse.Namespace) -> int:
+    dataset = open_dataset(args.input, format=args.format, streaming=True, malformed=args.malformed)
+    report = analyze_dataset(
+        dataset,
+        schema=args.schema,
+        checks=args.checks,
+        include_samples=args.include_samples,
+        redact_samples=not args.no_redact_samples,
+        max_sample_chars=args.max_sample_chars,
+    )
+    _print_json(report.to_dict()) if args.json else print(report.summary())
+    return 0 if not report.errors else EXIT_DATASET_VALIDATION_ERROR
+
+
+def data_split_command(args: argparse.Namespace) -> int:
+    dataset = open_dataset(args.input, format=args.format, streaming=True, malformed=args.malformed)
+    result = split_dataset(
+        dataset,
+        train=args.train,
+        validation=args.validation,
+        test=args.test,
+        seed=args.seed,
+        strategy=args.strategy,
+        key=args.key,
+        group_key=args.group_key,
+        split_field=args.split_field,
+    )
+    _print_json(result.to_dict()) if args.json else print(result.report.to_dict())
+    return 0
+
+
+def data_shard_command(args: argparse.Namespace) -> int:
+    dataset = open_dataset(args.input, format=args.format, streaming=True, malformed=args.malformed)
+    result = shard_dataset(dataset, num_shards=args.num_shards, strategy=args.strategy, key=args.key, seed=args.seed)
+    _print_json(result.to_dict()) if args.json else print(result.report.to_dict())
+    return 0
+
+
+def data_fingerprint_command(args: argparse.Namespace) -> int:
+    report = fingerprint(Path(args.input), mode=args.mode)
+    _print_json(report.to_dict()) if args.json else print(report.value)
+    return 0
+
+
+def model_inspect_command(args: argparse.Namespace) -> int:
+    report = inspect_model_support(
+        args.source,
+        task=args.task,
+        device=args.device,
+        precision=args.precision,
+        trust_remote_code=args.trust_remote_code,
+        tokenizer_path=args.tokenizer_path,
+    )
+    _print_json(report.to_dict()) if args.json else print(report.summary())
+    return 0 if report.is_supported else 1
+
+
+def model_list_command(args: argparse.Namespace) -> int:
+    records = [record.to_dict() for record in get_supported_models(args.status)]
+    _print_json(records)
+    return 0
+
+
+def model_load_check_command(args: argparse.Namespace) -> int:
+    report = inspect_model_support(
+        args.source,
+        task=args.task,
+        device=args.device,
+        precision=args.precision,
+        trust_remote_code=args.trust_remote_code,
+    )
+    if args.json:
+        _print_json(report.to_dict())
+    else:
+        print(report.summary())
+        for error in report.errors:
+            print(f"error: {error}")
+    return 0 if report.is_supported else 1
+
+
+def train_command(args: argparse.Namespace) -> int:
+    config = load_config(args.config) if args.config else create_config(
+        embed_dim=args.embed_dim,
+        num_blocks=args.num_blocks,
+        block_size=args.block_size,
+        learning_rate=args.learning_rate,
+        batch_size=args.batch_size,
+        num_epochs=args.epochs,
+        tokenizer_type=args.tokenizer_type,
+        max_vocab=args.max_vocab,
+        validation_split=args.validation_split,
+        device=args.device,
+        training_log_interval=args.training_log_interval,
+    )
+    config.validate()
+    result = train_model(
+        mode=args.mode,
+        data=args.data,
+        output=args.output,
+        checkpoint=args.checkpoint,
+        config=config,
+    )
+    payload = {
+        "mode": result.mode,
+        "model_path": result.model_path,
+        "vocab_size": result.vocab_size,
+        "history": result.history,
+    }
+    _print_json(payload) if args.json else print(f"saved: {result.model_path}")
+    return 0
+
+
+def evaluate_command(args: argparse.Namespace) -> int:
+    import torch
+
+    from .diagnostics import calculate_metrics, export_metrics_to_json, export_metrics_to_markdown
+    from .inference import load_model
+
+    loaded = load_model(args.model, device=args.device)
+    config = loaded.config
+    data = DataProcessor.load(args.data).transform(format="pretraining")
+    tokenizer = getattr(loaded.generator, "tokenizer", None)
+    if tokenizer is None:
+        raise ArcLMError("Loaded model has no tokenizer for evaluation data.")
+    encoded = []
+    for row in data.samples:
+        encoded.extend(tokenizer.encode_text(row["text"]))
+    from .dataset import create_dataloader
+
+    loader = create_dataloader(encoded, config.block_size, args.batch_size, shuffle=False)
+    metrics = calculate_metrics(loaded.model, loader, config, torch.device(args.device))
+    output = Path(args.output)
+    export_metrics_to_json(metrics, str(output))
+    export_metrics_to_markdown(metrics, str(output.with_suffix(".md")))
+    payload = metrics.to_dict()
+    payload["output"] = str(output)
+    _print_json(payload) if args.json else print(metrics.to_dict())
+    return 0
+
+
+def generate_command(args: argparse.Namespace) -> int:
+    from .inference import GenerationConfig, generate, load_model
+
+    loaded = load_model(args.model, device=args.device)
+    result = generate(
+        loaded,
+        prompts=args.prompt,
+        config=GenerationConfig(max_new_tokens=args.length, temperature=args.temperature, top_k=args.top_k),
+        batch_size=args.batch_size,
+    )
+    payload = result.to_dict()
+    _print_json(payload) if args.json else print("\n".join(result.outputs))
+    return 0
+
+
+def workflow_run_command(args: argparse.Namespace) -> int:
+    result = run_workflow(args.config, dry_run=args.dry_run, stages=args.stage)
+    _print_json(result.to_dict()) if args.json else print(f"{result.status}: {result.run_dir}")
+    if result.status == "completed" or result.status == "dry_run":
+        return 0
+    if result.status == "failed" and any(stage.status == "passed" for stage in result.stages):
+        return EXIT_WORKFLOW_PARTIAL
+    return EXIT_GENERAL_FAILURE
+
+
+def runs_list_command(args: argparse.Namespace) -> int:
+    rows = list_runs(args.output_dir)
+    _print_json(rows) if args.json else print("\n".join(row.get("path", "") for row in rows))
+    return 0
+
+
+def runs_inspect_command(args: argparse.Namespace) -> int:
+    _print_json(inspect_run(args.path))
+    return 0
+
+
+def cache_inspect_command(args: argparse.Namespace) -> int:
+    _print_json(inspect_cache(args.cache_dir).to_dict())
+    return 0
+
+
+def cache_clear_command(args: argparse.Namespace) -> int:
+    _print_json(clear_cache(args.cache_dir, key=args.key).to_dict())
+    return 0
+
+
+def plugins_list_command(args: argparse.Namespace) -> int:
+    from .registry import list_plugins
+
+    _print_json(list_plugins())
+    return 0
+
+
+def run_command(args: argparse.Namespace) -> int:
     if args.run in {"simple-interface", "simple_interface"}:
         try:
-            from arclm.simple_interface import run_simple_interface
+            from .simple_interface import run_simple_interface
         except ModuleNotFoundError as exc:
             if exc.name == "flask":
-                print(
-                    "The simple interface requires Flask. "
-                    "Install it with: pip install arclm[web]"
-                )
-                return 1
+                raise ArcLMError("The simple interface requires Flask. Install arclm[web].") from exc
             raise
-
-        run_simple_interface(
-            host=args.host,
-            port=args.port,
-            debug=args.debug,
-        )
+        run_simple_interface(host=args.host, port=args.port, debug=args.debug)
         return 0
-
-    print(f"Unknown runtime target: {args.run}")
-    return 1
+    raise ArcLMError(f"Unknown runtime target: {args.run}")
 
 
-def main():
-    """Main CLI entry point"""
-    parser = argparse.ArgumentParser(
-        description="ArcLM - command-line tools for training and inference",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  arclm train --config config.yaml --data data.txt --output models/model.pth
-  arclm eval --model models/model.pth --data test.txt
-  arclm generate --model models/model.pth --prompt "The future is"
-  python -m arclm --run simple-interface
-        """
-    )
-    
-    parser.add_argument("--version", action="version", version="{} ArcLM".format(__import__("arclm").__version__))
-    parser.add_argument(
-        "--run",
-        choices=["simple-interface", "simple_interface"],
-        help="Run an ArcLM runtime helper such as the simple web interface",
-    )
-    parser.add_argument(
-        "--host",
-        default=None,
-        help="Host for --run simple-interface, defaults to HOST or 0.0.0.0",
-    )
-    parser.add_argument(
-        "--port",
-        type=int,
-        default=None,
-        help="Port for --run simple-interface, defaults to PORT or 5000",
-    )
-    debug_group = parser.add_mutually_exclusive_group()
-    debug_group.add_argument(
-        "--debug",
-        dest="debug",
-        action="store_true",
-        default=None,
-        help="Enable Flask debug mode for --run simple-interface",
-    )
-    debug_group.add_argument(
-        "--no-debug",
-        dest="debug",
-        action="store_false",
-        help="Disable Flask debug mode for --run simple-interface",
-    )
-    
-    subparsers = parser.add_subparsers(title="commands", dest="command")
-    
-    create_train_parser(subparsers)
-    create_eval_parser(subparsers)
-    create_generate_parser(subparsers)
-    
-    args = parser.parse_args()
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="ArcLM data and causal-LM workflow tools")
+    parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument("--run", choices=["simple-interface", "simple_interface"], help="Run a runtime helper")
+    parser.add_argument("--host", default=None, help="Host for --run simple-interface")
+    parser.add_argument("--port", type=int, default=None, help="Port for --run simple-interface")
+    parser.add_argument("--debug", action="store_true", default=None, help="Enable debug mode for --run")
+    parser.add_argument("--no-debug", dest="debug", action="store_false", help="Disable debug mode for --run")
+    parser.add_argument("--quiet", action="store_true", help="Show only errors")
+    parser.add_argument("--verbose", action="store_true", help="Show verbose logs")
+    parser.add_argument("--traceback", action="store_true", help="Show tracebacks for expected ArcLM errors")
 
+    subparsers = parser.add_subparsers(dest="command")
+
+    version_parser = subparsers.add_parser("version", help="Print ArcLM version")
+    version_parser.set_defaults(func=version_command)
+
+    info_parser = subparsers.add_parser("info", help="Print environment information")
+    info_parser.add_argument("--json", action="store_true")
+    info_parser.set_defaults(func=info_command)
+
+    data_parser = subparsers.add_parser("data", help="Dataset tools")
+    data_sub = data_parser.add_subparsers(dest="data_command", required=True)
+    _add_data_common(data_sub.add_parser("inspect", help="Inspect records"))
+    data_sub.choices["inspect"].add_argument("--sample", type=int, default=3)
+    data_sub.choices["inspect"].set_defaults(func=data_inspect_command)
+
+    validate_parser = _add_data_common(data_sub.add_parser("validate", help="Validate records"))
+    _add_validation_options(validate_parser)
+    validate_parser.set_defaults(func=data_validate_command)
+
+    prepare_parser = _add_data_common(data_sub.add_parser("prepare", help="Prepare records into JSONL"))
+    prepare_parser.add_argument("--output", "-o", required=True)
+    prepare_parser.add_argument("--schema", choices=["text", "prompt_completion", "instruction", "conversation"])
+    prepare_parser.add_argument("--strict", action="store_true")
+    prepare_parser.add_argument("--allow-empty", action="store_true")
+    prepare_parser.add_argument("--normalize-text", action="store_true", default=True)
+    prepare_parser.add_argument("--no-normalize-text", dest="normalize_text", action="store_false")
+    prepare_parser.add_argument("--remove-empty", action="store_true", default=True)
+    prepare_parser.add_argument("--deduplicate", action="store_true")
+    prepare_parser.add_argument("--text-field", default="text")
+    prepare_parser.add_argument("--seed", type=int, default=42)
+    prepare_parser.set_defaults(func=data_prepare_command)
+
+    analyze_parser = _add_data_common(data_sub.add_parser("analyze", help="Analyze dataset quality"))
+    analyze_parser.add_argument("--schema", choices=["text", "prompt_completion", "instruction", "conversation"])
+    analyze_parser.add_argument("--checks", nargs="*")
+    analyze_parser.add_argument("--malformed", default="raise", choices=["raise", "report"])
+    analyze_parser.add_argument("--include-samples", action="store_true")
+    analyze_parser.add_argument("--no-redact-samples", action="store_true")
+    analyze_parser.add_argument("--max-sample-chars", type=int, default=120)
+    analyze_parser.set_defaults(func=data_analyze_command)
+
+    split_parser = _add_data_common(data_sub.add_parser("split", help="Deterministically split records"))
+    split_parser.add_argument("--malformed", default="raise", choices=["raise", "report"])
+    split_parser.add_argument("--train", type=float, default=0.8)
+    split_parser.add_argument("--validation", type=float, default=0.1)
+    split_parser.add_argument("--test", type=float, default=0.1)
+    split_parser.add_argument("--strategy", default="hash", choices=["hash", "random", "chronological"])
+    split_parser.add_argument("--key")
+    split_parser.add_argument("--group-key")
+    split_parser.add_argument("--split-field")
+    split_parser.add_argument("--seed", type=int, default=42)
+    split_parser.set_defaults(func=data_split_command)
+
+    shard_parser = _add_data_common(data_sub.add_parser("shard", help="Deterministically shard records"))
+    shard_parser.add_argument("--malformed", default="raise", choices=["raise", "report"])
+    shard_parser.add_argument("--num-shards", type=int, required=True)
+    shard_parser.add_argument("--strategy", default="contiguous", choices=["contiguous", "round_robin", "hash"])
+    shard_parser.add_argument("--key")
+    shard_parser.add_argument("--seed", type=int, default=0)
+    shard_parser.set_defaults(func=data_shard_command)
+
+    fingerprint_parser = data_sub.add_parser("fingerprint", help="Fingerprint a dataset file or directory")
+    fingerprint_parser.add_argument("input")
+    fingerprint_parser.add_argument("--mode", default="content", choices=["content", "metadata", "sampled"])
+    fingerprint_parser.add_argument("--json", action="store_true")
+    fingerprint_parser.set_defaults(func=data_fingerprint_command)
+
+    model_parser = subparsers.add_parser("model", help="Model support tools")
+    model_sub = model_parser.add_subparsers(dest="model_command", required=True)
+    inspect_parser = model_sub.add_parser(
+        "inspect",
+        help="Inspect model support",
+        description="Inspect model support",
+    )
+    _add_model_options(inspect_parser)
+    inspect_parser.set_defaults(func=model_inspect_command)
+    list_parser = model_sub.add_parser("list", help="List ArcLM model support metadata")
+    list_parser.add_argument("--status", choices=["official", "experimental", "compatible_unverified", "unsupported"])
+    list_parser.set_defaults(func=model_list_command)
+    load_check = model_sub.add_parser("load-check", help="Check whether a model can be loaded")
+    _add_model_options(load_check)
+    load_check.set_defaults(func=model_load_check_command)
+
+    train_parser = subparsers.add_parser("train", help="Train a native ArcLM causal LM")
+    train_parser.add_argument("--config")
+    train_parser.add_argument("--data", required=True)
+    train_parser.add_argument("--output", default="models/trained_model.pth")
+    train_parser.add_argument("--checkpoint")
+    train_parser.add_argument("--mode", default="pretrain", choices=["pretrain", "finetune", "continue_training"])
+    train_parser.add_argument("--embed-dim", type=int, default=64)
+    train_parser.add_argument("--num-blocks", type=int, default=2)
+    train_parser.add_argument("--block-size", type=int, default=8)
+    train_parser.add_argument("--learning-rate", type=float, default=1e-3)
+    train_parser.add_argument("--batch-size", type=int, default=64)
+    train_parser.add_argument("--epochs", type=int, default=1)
+    train_parser.add_argument("--tokenizer-type", default="word", choices=["word", "sentencepiece"])
+    train_parser.add_argument("--max-vocab", type=int, default=50000)
+    train_parser.add_argument("--validation-split", type=float, default=0.0)
+    train_parser.add_argument("--training-log-interval", type=int, default=50)
+    train_parser.add_argument("--device", default="cpu", choices=["cpu", "cuda", "auto"])
+    train_parser.add_argument("--json", action="store_true")
+    train_parser.set_defaults(func=train_command)
+
+    evaluate_parser = subparsers.add_parser("evaluate", aliases=["eval"], help="Evaluate a native ArcLM checkpoint")
+    evaluate_parser.add_argument("--model", required=True)
+    evaluate_parser.add_argument("--data", required=True)
+    evaluate_parser.add_argument("--output", default="metrics_report.json")
+    evaluate_parser.add_argument("--batch-size", type=int, default=32)
+    evaluate_parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
+    evaluate_parser.add_argument("--json", action="store_true")
+    evaluate_parser.set_defaults(func=evaluate_command)
+
+    generate_parser = subparsers.add_parser("generate", help="Generate text from a native ArcLM checkpoint")
+    generate_parser.add_argument("--model", required=True)
+    generate_parser.add_argument("--prompt", required=True, nargs="+")
+    generate_parser.add_argument("--length", type=int, default=100)
+    generate_parser.add_argument("--temperature", type=float, default=1.0)
+    generate_parser.add_argument("--top-k", type=int, default=None)
+    generate_parser.add_argument("--batch-size", type=int, default=1)
+    generate_parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
+    generate_parser.add_argument("--json", action="store_true")
+    generate_parser.set_defaults(func=generate_command)
+
+    run_parser = subparsers.add_parser("run", help="Run a configuration-driven ArcLM workflow")
+    run_parser.add_argument("config")
+    run_parser.add_argument("--dry-run", action="store_true")
+    run_parser.add_argument("--stage", action="append")
+    run_parser.add_argument("--json", action="store_true")
+    run_parser.set_defaults(func=workflow_run_command)
+
+    runs_parser = subparsers.add_parser("runs", help="Inspect local ArcLM runs")
+    runs_sub = runs_parser.add_subparsers(dest="runs_command", required=True)
+    runs_list = runs_sub.add_parser("list")
+    runs_list.add_argument("--output-dir", default="runs")
+    runs_list.add_argument("--json", action="store_true")
+    runs_list.set_defaults(func=runs_list_command)
+    runs_inspect = runs_sub.add_parser("inspect")
+    runs_inspect.add_argument("path")
+    runs_inspect.set_defaults(func=runs_inspect_command)
+
+    cache_parser = subparsers.add_parser("cache", help="Inspect and clear ArcLM caches")
+    cache_sub = cache_parser.add_subparsers(dest="cache_command", required=True)
+    cache_inspect = cache_sub.add_parser("inspect")
+    cache_inspect.add_argument("cache_dir")
+    cache_inspect.set_defaults(func=cache_inspect_command)
+    cache_clear = cache_sub.add_parser("clear")
+    cache_clear.add_argument("cache_dir")
+    cache_clear.add_argument("--key")
+    cache_clear.set_defaults(func=cache_clear_command)
+
+    plugins_parser = subparsers.add_parser("plugins", help="Inspect local extension plugins")
+    plugins_sub = plugins_parser.add_subparsers(dest="plugins_command", required=True)
+    plugins_list = plugins_sub.add_parser("list")
+    plugins_list.set_defaults(func=plugins_list_command)
+    return parser
+
+
+def _add_data_common(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser.add_argument("input")
+    parser.add_argument("--format", choices=["json", "jsonl", "csv", "txt"])
+    parser.add_argument("--json", action="store_true")
+    return parser
+
+
+def _add_validation_options(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser.add_argument("--schema", required=True, choices=["text", "prompt_completion", "instruction", "conversation"])
+    parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--allow-empty", action="store_true")
+    parser.add_argument("--check-duplicates", action="store_true")
+    parser.add_argument("--duplicate-field")
+    return parser
+
+
+def _add_model_options(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser.add_argument("source")
+    parser.add_argument("--task", default="causal-lm", choices=["causal-lm"])
+    parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--precision", default="auto", choices=["auto", "float32", "fp32", "float16", "fp16", "bfloat16", "bf16"])
+    parser.add_argument("--tokenizer-path")
+    parser.add_argument("--trust-remote-code", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    return parser
+
+
+def main(argv: Iterable[str] | None = None) -> int:
+    """Run the ArcLM CLI."""
+
+    parser = build_parser()
+    args = parser.parse_args(list(argv) if argv is not None else None)
+    configure_logging("quiet" if args.quiet else "verbose" if args.verbose else "normal")
     if args.run:
         return run_command(args)
-    
     if not hasattr(args, "func"):
         parser.print_help()
         return 0
-    
-    return args.func(args)
+    try:
+        return int(args.func(args))
+    except ConfigurationError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_CONFIGURATION_ERROR
+    except DatasetValidationError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_DATASET_VALIDATION_ERROR
+    except UnsupportedModelError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_MODEL
+    except ModelLoadError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_MODEL_LOAD_ERROR
+    except TrainingError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_TRAINING_ERROR
+    except OptionalDependencyError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_OPTIONAL_DEPENDENCY_MISSING
+    except ArcLMError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_GENERAL_FAILURE
+    except (FileNotFoundError, ValueError) as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_GENERAL_FAILURE
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

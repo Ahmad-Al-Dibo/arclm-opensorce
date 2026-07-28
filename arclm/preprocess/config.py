@@ -8,6 +8,44 @@ import yaml
 
 @dataclass
 class PreprocessConfig:
+    """Configuration for JSONL dataset cleaning and filtering.
+
+    Parameters:
+        text_field: Field read from each JSONL row.
+        output_field: Field written with cleaned text.
+        min_chars: Minimum cleaned-text character count.
+        max_chars: Maximum cleaned-text character count.
+        min_words: Minimum whitespace word count.
+        max_repeated_char_run: Maximum repeated-character run before dropping.
+        max_repeated_word_ratio: Maximum repeated-word ratio before dropping.
+        min_entropy: Minimum character entropy heuristic.
+        max_entropy: Maximum character entropy heuristic.
+        allowed_languages: Heuristic language labels to keep.
+        min_language_confidence: Minimum confidence for language detection.
+        remove_html: Strip simple HTML markup before filtering.
+        normalize_unicode: Normalize Unicode text.
+        lowercase: Lowercase cleaned text.
+        drop_urls: Replace URL-like text.
+        drop_emails: Replace email-like text.
+        drop_phone_numbers: Replace phone-like text.
+        redact_pii: Apply built-in PII redaction heuristics.
+        exact_dedup: Drop exact duplicate cleaned rows.
+        near_dedup: Drop near-duplicates using SimHash.
+        simhash_threshold: Maximum SimHash distance treated as duplicate.
+        toxicity_enabled: Enable built-in toxicity heuristic.
+        max_toxicity_score: Maximum toxicity score before dropping.
+        perplexity_enabled: Enable simple perplexity heuristic.
+        max_perplexity: Maximum simple perplexity score before dropping.
+        workers: Reserved for future parallel execution; currently not used.
+        batch_size: Reserved for future batching; currently not used by ``run``.
+        report_html: Write an HTML report when ``report_dir`` is provided.
+        report_json: Write a JSON report when ``report_dir`` is provided.
+
+    Stability:
+        Experimental in ArcLM 0.8.0.dev0. Field names are public but
+        validation is intentionally lightweight.
+    """
+
     text_field: str = "text"
     output_field: str = "text"
     min_chars: int = 20
@@ -40,8 +78,17 @@ class PreprocessConfig:
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "PreprocessConfig":
+        """Load preprocessing settings from a YAML file.
+
+        Raises:
+            TypeError: If YAML values do not match dataclass fields.
+            yaml.YAMLError: If the YAML file cannot be parsed.
+        """
+
         data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
         return cls(**data)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return a dictionary representation of the configuration."""
+
         return dict(self.__dict__)

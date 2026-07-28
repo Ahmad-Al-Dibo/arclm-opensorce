@@ -18,12 +18,37 @@ from .report import write_html_report, write_json_report
 
 
 class PreprocessPipeline:
+    """Run ArcLM's built-in JSONL cleaning and filtering pipeline.
+
+    The pipeline reads rows with a text field, applies deterministic cleaning,
+    quality filters, language/toxicity/perplexity heuristics when configured,
+    deduplication, and optional JSON/HTML reporting.
+
+    Parameters:
+        config: A :class:`PreprocessConfig` instance.
+
+    Stability:
+        Experimental in ArcLM 0.8.0.dev0. The high-level class is public, but
+        the individual heuristics are intentionally simple and should be
+        validated for each dataset.
+    """
+
     def __init__(self, config: PreprocessConfig):
         self.config = config
         self.duplicates = DuplicateIndex()
         self.stats = DatasetStats()
 
     def process_row(self, row: Dict[str, Any]) -> tuple[Dict[str, Any] | None, list[str]]:
+        """Clean and validate one JSON-like row.
+
+        Parameters:
+            row: Input mapping containing ``config.text_field``.
+
+        Returns:
+            A pair ``(cleaned_row, reasons)``. ``cleaned_row`` is ``None`` when
+            the row is dropped; ``reasons`` contains drop reason codes.
+        """
+
         cfg = self.config
         if "_error" in row:
             return None, [row["_error"]]
@@ -49,6 +74,18 @@ class PreprocessPipeline:
         return out, []
 
     def run(self, input_path: str | Path, output_path: str | Path, report_dir: str | Path | None = None) -> Dict[str, Any]:
+        """Process a JSONL file and write kept rows.
+
+        Parameters:
+            input_path: Input JSONL path.
+            output_path: Output JSONL path for kept rows.
+            report_dir: Optional directory for JSON and/or HTML reports.
+
+        Returns:
+            Report dictionary with total, kept, dropped, reason counts, and
+            written-row count.
+        """
+
         def kept_rows() -> Iterator[Dict[str, Any]]:
             for row in tqdm(read_jsonl(input_path), desc="preprocess"):
                 cleaned, _ = self.process_row(row)

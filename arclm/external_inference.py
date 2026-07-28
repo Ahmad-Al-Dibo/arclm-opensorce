@@ -20,6 +20,7 @@ import torch
 
 from ._version import __version__
 from .config import Config
+from .deprecation import warn_deprecated
 from .generator import Generator
 from .inference import CheckpointTokenizer, LoadedModel, load_model
 from .loaders import adapt_for_training, load_external_model
@@ -394,7 +395,13 @@ def inspect_model_source(source: PathLike, **kwargs: Any) -> ModelSourceInfo:
 
 
 def load_any_model(source: PathLike, **kwargs: Any) -> ExternalLoadedModel:
-    """Load any supported ArcLM or Hugging Face causal LM source for inference."""
+    """Load any supported ArcLM or Hugging Face causal LM source for inference.
+
+    Deprecated:
+        Use :func:`arclm.models.load_model` for new code.
+    """
+
+    warn_deprecated("load_any_model", "arclm.models.load_model", "0.9.0")
 
     config = _external_config_from_kwargs(source, kwargs)
     source_info = inspect_model_source(config.source)

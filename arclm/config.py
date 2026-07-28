@@ -7,6 +7,7 @@ from pathlib import Path
 import json
 
 import torch
+from .config_validation import validate_training_config
 
 class Config:
     
@@ -196,6 +197,11 @@ class Config:
 
     def get_device(self):
         return torch.device(self.device)
+
+    def validate(self):
+        """Validate and normalize important configuration values in place."""
+
+        return validate_training_config(self)
     
     def __repr__(self):
         items = "\n".join(f"  {k}: {v}" for k, v in self.to_dict().items())

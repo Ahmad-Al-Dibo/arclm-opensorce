@@ -13,6 +13,31 @@ from dataclasses import dataclass
 from pathlib import Path
 from collections import Counter
 from .dataset import create_dataloader
+from .data_pipeline import DataPipeline, DataPipelineReport
+from .data_quality import (
+    DataQualityIssue,
+    DataQualityReport,
+    DuplicateReport,
+    ShardResult,
+    SplitResult,
+    analyze_dataset,
+    check_leakage,
+    find_duplicates,
+    find_near_duplicates,
+    shard_dataset,
+    split_dataset,
+)
+from .data_sources import DatasetSource, DatasetSourceMetadata, open_dataset
+from .schemas import (
+    ConversationRecord,
+    DatasetValidationReport,
+    InstructionRecord,
+    PromptCompletionRecord,
+    TextRecord,
+    ValidationIssue,
+    validate_record,
+    validate_records,
+)
 from .tokenizer import SentencePieceTokenizer, Tokenizer
 from .config import Config
 from typing import Optional

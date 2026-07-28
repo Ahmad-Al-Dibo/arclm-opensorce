@@ -1,6 +1,6 @@
 # ArcLM Examples
 
-These examples target ArcLM 0.5.0. The numbered scripts are the maintained public examples and each focuses on one concept.
+These examples target ArcLM 0.8.0 development APIs. The numbered scripts are maintained public examples and each focuses on one real API path.
 
 Run from the repository root:
 
@@ -35,4 +35,4 @@ These need optional dependencies or network/model downloads:
 
 ## Advanced Workflow
 
-- `qwen3_0_6b_sft/`: larger Qwen SFT workflow.
+- `qwen3_0_6b_sft/`: larger Qwen SFT workflow. This is an experimental, reproducible example, not an official support guarantee.

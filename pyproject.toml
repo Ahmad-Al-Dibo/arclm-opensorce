@@ -46,6 +46,7 @@ dependencies = [
   "numpy>=1.24,<3",
   "sentencepiece>=0.2,<0.3",
   "transformers>=4.51,<6",
+  "tomli>=2; python_version<'3.11'",
 ]
 
 [project.optional-dependencies]
@@ -68,6 +69,15 @@ dev = [
   "pytest>=8",
   "build>=1.2,<2",
   "twine>=5,<7",
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9,<10",
+  "ruff>=0.8,<1",
+  "mypy>=1.10,<2",
+  "pip-audit>=2.7,<3",
+]
+docs = [
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9,<10",
 ]
 web = [
   "flask>=3,<4",
@@ -151,8 +161,11 @@ Source = "https://github.com/ahmad-al-dibo/arclm"
 Issues = "https://github.com/ahmad-al-dibo/arclm/issues"
 Changelog = "https://github.com/ahmad-al-dibo/arclm/blob/main/CHANGELOG.md"
 
+[project.scripts]
+arclm = "arclm.cli:main"
+
 [tool.setuptools]
-packages = ["arclm", "arclm.logics", "arclm.loaders", "arclm.preprocess", "arclm.tokenizers", "arclm.training"]
+packages = ["arclm", "arclm.logics", "arclm.loaders", "arclm.models", "arclm.preprocess", "arclm.templates", "arclm.tokenizers", "arclm.training"]
 
 [tool.setuptools.package-data]
 arclm = ["templates/*.html"]
@@ -163,3 +176,65 @@ version = { attr = "arclm._version.__version__" }
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+markers = [
+  "slow: tests that download/load external models or run heavier workflows",
+  "hf: tests that require Hugging Face/Transformers integration",
+  "transformers: tests that require Transformers integration",
+  "cli: command-line interface tests",
+  "docs: documentation and documented public import tests",
+  "integration: cross-component integration tests",
+  "benchmark: benchmark smoke tests",
+  "security: security smoke tests",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 160
+extend-exclude = [
+  "README.md",
+  "arclm",
+  "arclm/api.py",
+  "arclm/__init__.py",
+  "arclm/_version.py",
+  "arclm/checkpoints.py",
+  "arclm/cli.py",
+  "arclm/config.py",
+  "arclm/utils.py",
+  "docs",
+  "docs/versions",
+  "examples",
+  "scripts",
+  "site",
+  "build",
+  "dist",
+  ".venv",
+  ".test-venv",
+  ".test-sdist-venv",
+  "setup.py",
+  "train.py",
+  "usage.py",
+  "tests/test_data_pipeline.py",
+  "tests/test_gpt2_certification.py",
+  "tests/test_instruction_sft.py",
+  "tests/test_library_smoke.py",
+  "tests/test_preprocess_pipeline.py",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+ignore = ["F822"]
+
+[tool.ruff.format]
+docstring-code-format = false
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+no_site_packages = true
+disable_error_code = ["import-untyped"]
+ignore_errors = true
+exclude = "(docs|site|build|dist|examples)"

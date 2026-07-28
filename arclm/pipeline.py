@@ -5,6 +5,7 @@ Model construction and training pipeline helpers.
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
+import logging
 import time
 
 import torch
@@ -16,6 +17,10 @@ from .loaders import adapt_for_training, load_external_model, validate_tokenizer
 from .model import ArcLM
 from .tokenizer import SentencePieceTokenizer, Tokenizer
 from .trainer import Trainer
+from .deprecation import deprecated
+
+
+logger = logging.getLogger(__name__)
 
 
 def build_model(config, vocab_size=None) -> ArcLM:
@@ -334,7 +339,7 @@ def checkpoint_is_compatible_for_continue_training(checkpoint, config, vocab_siz
     """Check whether a checkpoint can be reused for the current run."""
     checkpoint_config = checkpoint.get("config", {})
     if checkpoint_config == {}:
-        print("[WARNING] in `checkpoint_is_compatible` checkpoint config return {}! ")
+        logger.warning("Checkpoint config is missing or empty.")
     same_vocab = checkpoint.get("vocab_size") == vocab_size
     same_shape = (
         checkpoint_config.get("embed_dim", config.embed_dim) == config.embed_dim
@@ -365,16 +370,21 @@ def checkpoint_is_compatible_for_continue_training(checkpoint, config, vocab_siz
         == config.validation_split
     )
     
-    print("same_vocab, same_shape, same_tokenizer, same_training_strategy", same_vocab, same_shape, same_tokenizer, same_training_strategy)
-    # return same_vocab and same_shape and same_tokenizer and same_training_strategy
+    logger.debug(
+        "continue checkpoint compatibility: same_vocab=%s same_shape=%s same_tokenizer=%s same_training_strategy=%s",
+        same_vocab,
+        same_shape,
+        same_tokenizer,
+        same_training_strategy,
+    )
     return same_vocab and same_shape and same_tokenizer and same_training_strategy
 
 
-def checkpoint_is_compatible_for_tuining(checkpoint, config, vocab_size, tokenizer=None):
-    """Check whether a checkpoint can be reused for the current run."""
+def checkpoint_is_compatible_for_tuning(checkpoint, config, vocab_size, tokenizer=None):
+    """Check whether a checkpoint can be reused for native fine-tuning."""
     checkpoint_config = checkpoint.get("config", {})
     if checkpoint_config == {}:
-        print("[WARNING] in `checkpoint_is_compatible` checkpoint config return {}! ")
+        logger.warning("Checkpoint config is missing or empty.")
     same_vocab = checkpoint.get("vocab_size") == vocab_size
     same_shape = (
         checkpoint_config.get("embed_dim", config.embed_dim) == config.embed_dim
@@ -397,22 +407,31 @@ def checkpoint_is_compatible_for_tuining(checkpoint, config, vocab_size, tokeniz
         else:
             same_tokenizer = False
 
-    # same_training_strategy = (
-    #     checkpoint_config.get("learning_rate", config.learning_rate) == config.learning_rate
-    #     and checkpoint_config.get("weight_decay", config.weight_decay) == config.weight_decay
-    #     and checkpoint_config.get("dropout", 0.0) == config.dropout
-    #     and checkpoint_config.get("validation_split", config.validation_split)
-    #     == config.validation_split
-    # )
     same_training_strategy = (
         checkpoint_config.get("weight_decay", config.weight_decay) == config.weight_decay
         and checkpoint_config.get("dropout", 0.0) == config.dropout
         and checkpoint_config.get("validation_split", config.validation_split)
         == config.validation_split
     )
-    print("same_vocab, same_shape, same_tokenizer, same_training_strategy", same_vocab, same_shape, same_tokenizer, same_training_strategy)
-    # return same_vocab and same_shape and same_tokenizer and same_training_strategy
+    logger.debug(
+        "tuning checkpoint compatibility: same_vocab=%s same_shape=%s same_tokenizer=%s same_training_strategy=%s",
+        same_vocab,
+        same_shape,
+        same_tokenizer,
+        same_training_strategy,
+    )
     return same_shape and same_tokenizer and same_training_strategy
+
+
+@deprecated(
+    name="checkpoint_is_compatible_for_tuining",
+    replacement="checkpoint_is_compatible_for_tuning",
+    removal_version="0.9.0",
+)
+def checkpoint_is_compatible_for_tuining(checkpoint, config, vocab_size, tokenizer=None):
+    """Deprecated misspelled alias for :func:`checkpoint_is_compatible_for_tuning`."""
+
+    return checkpoint_is_compatible_for_tuning(checkpoint, config, vocab_size, tokenizer=tokenizer)
 
 
 

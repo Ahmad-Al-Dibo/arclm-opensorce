@@ -3,6 +3,8 @@ __pycache__/
 *.egg-info/
 
 .venv/
+.test-venv/
+.test-sdist-venv/
 examples/.venv/
 .pytest_cache/
 .mypy_cache/
@@ -10,6 +12,7 @@ examples/.venv/
 
 build/
 dist/
+site/
 
 models/*
 !models/.gitkeep
@@ -33,5 +36,6 @@ examples/qwen3_0_6b_sft/output/
 examples/runs/
 examples/_outputs/
 reports/
-.env
+.arclm/
+runs/
 .env

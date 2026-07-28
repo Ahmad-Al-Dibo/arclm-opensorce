@@ -1,6 +1,7 @@
 """ArcLM model architecture."""
 
 import math
+import warnings
 import torch
 import torch.nn as nn
 
@@ -94,7 +95,16 @@ class ArcLM(nn.Module):
         return sum(p.numel() for p in self.parameters())
 
 
-# Backward-compatible alias for older code and checkpoints.
-MiniGPT = ArcLM
+class MiniGPT(ArcLM):
+    """Deprecated backward-compatible alias for :class:`ArcLM`."""
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "MiniGPT is deprecated and scheduled for removal in ArcLM 0.9.0. "
+            "Use ArcLM instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
 

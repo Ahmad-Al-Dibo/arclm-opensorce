@@ -1,110 +1,181 @@
-# ArcLM Simple Interface
+# ArcLM
 
-[![PyPI](https://img.shields.io/pypi/v/arclm.svg)](https://pypi.org/project/arclm/)
-[![Python](https://img.shields.io/pypi/pyversions/arclm.svg)](https://pypi.org/project/arclm/)
-[![License](https://img.shields.io/pypi/l/arclm.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/release-0.6.0-blue.svg)](docs/VERSIONING.md)
+ArcLM is a focused Python framework for preparing language-model data and building reproducible workflows for causal language models.
 
-ArcLM now includes a packaged web inference interface that can be started from the library, used from Python code, and used to save loaded models locally.
+ArcLM `0.8.0.dev0` is not a general machine-learning framework and should not be treated as production-ready yet. Its strongest supported paths are data-first workflows, streaming dataset preparation, native ArcLM causal-language-model checkpoints, and certified tiny GPT-2 Hugging Face integration tests.
 
-## Install Web Support
+## Purpose
 
-```bash
-pip install "arclm[web]"
+ArcLM helps developers move through the practical language-model workflow:
+
+```text
+Raw data -> Loading -> Cleaning -> Validation -> Transformation -> Formatting
+-> Tokenization -> Model loading -> Training or fine-tuning -> Evaluation
+-> Inference -> Reporting
 ```
 
-## Install Everything
+The framework puts dataset preparation first because most training and fine-tuning failures start before the model is loaded: inconsistent records, missing fields, duplicated samples, tokenizer mismatches, and undocumented formatting choices.
 
-CPU install with the official PyTorch CPU index:
+## Main Features
+
+- Load JSON, JSONL, CSV, TXT, or custom in-memory datasets with `DataProcessor`.
+- Clean, filter, transform, split, and tokenize records with composable dataset helpers.
+- Run JSONL preprocessing reports with `PreprocessPipeline`.
+- Build word or SentencePiece tokenizers with `Tokenizer` and `SentencePieceTokenizer`.
+- Train compact native decoder-only ArcLM models with `train_model`.
+- Load native checkpoints with `load_model`.
+- Inspect and load Hugging Face causal-LM sources with `inspect_model_source` and `load_any_model`.
+- Run Hugging Face SFT with `train_sft` when optional dependencies and hardware are available.
+- Generate metrics and diagnostics for native ArcLM checkpoints.
+- Start the optional Flask simple interface with `python -m arclm --run simple-interface`.
+
+## Project Status
+
+Development version: `0.8.0.dev0`. Current released version: `0.6.1`.
+
+Status: pre-1.0 framework development. Public APIs are usable but still need stronger validation, automated documentation checks, model-family verification, and a formal deprecation policy before a stable production release.
+
+## Supported Model Focus
+
+ArcLM initially focuses on:
+
+- Causal language models
+- Decoder-only transformer models
+- Models compatible with causal language modeling workflows
+
+Official support currently means the model path has verified loading, tokenizer loading, causal-LM behavior, inference or training where claimed, documented limitations, and an automated or reproducible verification path.
+
+See [Supported Models](docs/supported-models.md) for the full support matrix.
+
+## Installation
+
+Install from PyPI:
+
+```bash
+pip install arclm
+```
+
+For CPU-only environments, install with the official PyTorch CPU index:
 
 ```bash
 pip install "arclm[all-cpu]" --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
 ```
 
-CUDA 12.1 install with the official PyTorch CUDA index:
+For CUDA 12.1:
 
 ```bash
 pip install "arclm[all-cuda121]" --index-url https://download.pytorch.org/whl/cu121 --extra-index-url https://pypi.org/simple
 ```
 
-The `--index-url` part is passed to pip at install time. It cannot be stored inside `pyproject.toml` extras.
-
-## Run From The CLI
-
-Start the simple interface with:
+For local development:
 
 ```bash
-python -m arclm --run simple-interface
+pip install -e ".[dev,preprocess,hf,web]"
 ```
 
-Optional server settings:
+ArcLM declares Python `>=3.9,<3.13`.
 
-```bash
-python -m arclm --run simple-interface --host 127.0.0.1 --port 5000 --no-debug
-```
+## Minimal Quick Start
 
-## Run From Python
+This example uses only public ArcLM APIs and trains a tiny native causal model on CPU.
 
 ```python
-from arclm import run_simple_interface
+from pathlib import Path
+import tempfile
 
-run_simple_interface()
+from arclm import DataProcessor, Tokenizer, load_model, train_model
+
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    raw_path = root / "records.jsonl"
+    train_path = root / "train.txt"
+    model_path = root / "model.pth"
+
+    raw_path.write_text(
+        '{"text": "ArcLM prepares language model data."}\n'
+        '{"text": "Clean records make training easier."}\n',
+        encoding="utf-8",
+    )
+
+    dataset = (
+        DataProcessor.load(raw_path)
+        .clean()
+        .filter(lambda row: len(row.get("text", "")) > 10)
+        .transform(format="pretraining")
+    )
+
+    tokenizer = Tokenizer(max_vocab=64)
+    tokenizer.build(" ".join(row["text"] for row in dataset.samples))
+    tokenized = dataset.tokenize(tokenizer)
+    assert all("tokens" in row for row in tokenized.samples)
+
+    train_path.write_text(
+        " ".join(row["text"] for row in dataset.samples) * 24,
+        encoding="utf-8",
+    )
+
+    train_model(
+        mode="pretrain",
+        data=str(train_path),
+        output=str(model_path),
+        tokenizer_type="word",
+        max_vocab=64,
+        embed_dim=16,
+        num_blocks=1,
+        block_size=8,
+        batch_size=2,
+        num_epochs=1,
+        validation_split=0.0,
+        training_log_interval=0,
+        device="cpu",
+    )
+
+    loaded = load_model(model_path, device="cpu")
+    print(loaded.predict("ArcLM", max_new_tokens=4, top_k=3))
 ```
 
-You can also create the Flask app directly:
+## Documentation
 
-```python
-from arclm import create_simple_interface_app
+- [Documentation home](docs/index.md)
+- [Getting Started](docs/quick-start.md)
+- [Data Preparation Guide](docs/data-guide/loading-data.md)
+- [Model Loading Guide](docs/model-guide/loading-models.md)
+- [API Reference](docs/api-reference/index.md)
+- [CLI Reference](docs/cli-reference.md)
+- [Migration Guide](docs/migration-guide.md)
+- [Production Readiness](docs/production-readiness.md)
+- [Roadmap](docs/roadmap.md)
 
-app = create_simple_interface_app()
-```
+## Examples
 
-## Save Models Locally
-
-The interface includes:
-
-- `Model source`
-- `Load`
-- `Save path`
-- `Save mode`
-- `Overwrite`
-- `Save local`
-
-Default save path:
-
-```text
-models/saved
-```
-
-Override it with:
+Local examples are in [examples](examples/README.md). Start with:
 
 ```bash
-MODEL_SAVE_PATH=models/local python -m arclm --run simple-interface
+python examples/01_quickstart.py
+python examples/03_data_processing.py
+python examples/11_inference.py
 ```
 
-or:
+Examples that use Hugging Face models may download model files and need optional dependencies:
 
 ```bash
-SAVE_PATH=models/local python -m arclm --run simple-interface
+pip install -e ".[hf,peft]"
+python examples/08_huggingface_sft.py
 ```
 
-When `Save local` succeeds, the interface updates `Model source` to the saved local path so the model can be loaded from disk next time.
+## Honest Limitations
 
-## Save API
+- ArcLM native models are compact GPT-style models, not production-scale LLM architectures.
+- Hugging Face model loading is limited to causal language models through `AutoModelForCausalLM`.
+- Qwen examples are reproducible examples, not automated release certification.
+- Encoder-only and seq2seq models are out of scope for the current public workflow.
+- The CLI still contains older pathways that need consolidation with `train_model`.
+- Production readiness requires stronger validation, typed configs, full CI coverage, and a release/deprecation policy.
 
-```http
-POST /model/save
-```
+## Contributing
 
-Example payload:
+See [Contributing](docs/contributing.md). Contributions should keep ArcLM focused on data-first causal-language-model workflows and should include tests or reproducible examples for new public behavior.
 
-```json
-{
-  "model_source": "Qwen/Qwen3-0.6B",
-  "save_path": "models/saved",
-  "save_mode": "auto",
-  "overwrite": false
-}
-```
+## License
 
-`save_mode: "auto"` uses ArcLM's existing save logic for native ArcLM checkpoints, Hugging Face full models, and LoRA adapters.
+ArcLM is released under the [Apache License 2.0](LICENSE).

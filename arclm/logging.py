@@ -1,12 +1,43 @@
 """Non-blocking training event logging."""
 
 import json
+import logging as _logging
 import queue
 import sys
 import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
+
+
+LOG_LEVELS = {
+    "quiet": _logging.ERROR,
+    "normal": _logging.INFO,
+    "verbose": _logging.DEBUG,
+    "debug": _logging.DEBUG,
+}
+
+
+def get_logger(name: str = "arclm") -> _logging.Logger:
+    """Return an ArcLM package logger without configuring global logging."""
+
+    return _logging.getLogger(name if name.startswith("arclm") else f"arclm.{name}")
+
+
+def configure_logging(level: str = "normal") -> _logging.Logger:
+    """Configure ArcLM package logging for CLI/application entry points."""
+
+    normalized = str(level).lower().strip()
+    if normalized not in LOG_LEVELS:
+        raise ValueError("level must be one of: " + ", ".join(sorted(LOG_LEVELS)))
+    logger = _logging.getLogger("arclm")
+    logger.setLevel(LOG_LEVELS[normalized])
+    if not logger.handlers:
+        handler = _logging.StreamHandler()
+        handler.setFormatter(_logging.Formatter("%(levelname)s:%(name)s:%(message)s"))
+        logger.addHandler(handler)
+    logger.propagate = False
+    return logger
 
 
 class AsyncTrainingLogger:
