@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0
+
+- Added API stability manifest and snapshot tests.
+- Added typed configuration schema, migration reporting, doctor diagnostics,
+  safe checkpoint inspection, trust policies, and release-candidate helpers.
+- Added experimental CPU certification for `hf-internal-testing/tiny-random-LlamaForCausalLM`.
+
 ## 0.8.0.dev0
 
 - Added streaming dataset sources, deterministic sharding/splitting,

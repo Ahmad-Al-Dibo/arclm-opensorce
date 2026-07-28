@@ -10,17 +10,21 @@ from typing import Any, Iterable
 
 from . import __version__
 from .config import create_config
+from .config import load_arclm_config, migrate_config, validate_arclm_config
 from .config_loader import load_config
+from .checkpoints import inspect_checkpoint, verify_checkpoint
 from .data_processor import DataProcessor
 from .data_pipeline import DataPipeline
 from .data_quality import analyze_dataset, shard_dataset, split_dataset
 from .data_sources import open_dataset
-from .exceptions import ArcLMError, ConfigurationError, DatasetValidationError, ModelLoadError, OptionalDependencyError, TrainingError, UnsupportedModelError
+from .exceptions import ArcLMError, CheckpointError, ConfigurationError, DatasetValidationError, ModelLoadError, OptionalDependencyError, TrainingError, UnsupportedModelError
 from .logging import configure_logging
 from .models import inspect_model_support
 from .pipeline import train_model
 from .reproducibility import fingerprint
 from .cache import clear_cache, inspect_cache
+from .certification import certify_model_family
+from .doctor import run_doctor
 from .runs import inspect_run, list_runs
 from .schemas import validate_records
 from .supported_models import get_supported_models
@@ -84,6 +88,35 @@ def info_command(args: argparse.Namespace) -> int:
     else:
         for key, value in payload.items():
             print(f"{key}: {value}")
+    return 0
+
+
+def doctor_command(args: argparse.Namespace) -> int:
+    report = run_doctor(config=args.config, checkpoint=args.checkpoint, run_dir=args.run_dir, cache_dir=args.cache_dir)
+    if args.json:
+        _print_json(report.to_dict())
+    else:
+        for check in report.checks:
+            print(f"{check.status}: {check.name} - {check.message}")
+    return 0 if report.is_valid else EXIT_GENERAL_FAILURE
+
+
+def config_validate_command(args: argparse.Namespace) -> int:
+    config = validate_arclm_config(args.config, permissive=args.permissive, allow_env=args.allow_env)
+    payload = {"valid": True, "schema_version": config.schema_version, "config": config.to_dict(redact=True)}
+    _print_json(payload) if args.json else print(f"valid schema_version={config.schema_version}")
+    return 0
+
+
+def config_show_command(args: argparse.Namespace) -> int:
+    config = load_arclm_config(args.config, permissive=args.permissive, allow_env=args.allow_env)
+    _print_json(config.to_dict(redact=not args.show_secrets))
+    return 0
+
+
+def config_migrate_command(args: argparse.Namespace) -> int:
+    report = migrate_config(args.config, target_version=args.target_version, output=args.output, permissive=args.permissive)
+    _print_json(report.to_dict()) if args.json else print(f"{report.source_schema_version} -> {report.target_schema_version}")
     return 0
 
 
@@ -226,6 +259,31 @@ def model_load_check_command(args: argparse.Namespace) -> int:
         for error in report.errors:
             print(f"error: {error}")
     return 0 if report.is_supported else 1
+
+
+def model_certify_command(args: argparse.Namespace) -> int:
+    report = certify_model_family(
+        args.family,
+        args.source,
+        revision=args.revision,
+        device=args.device,
+        run_training=not args.no_training,
+        max_steps=args.max_steps,
+    )
+    _print_json(report.to_dict()) if args.json else print(json.dumps(report.to_dict(), indent=2, default=_json_default))
+    return 0 if report.is_certified else EXIT_GENERAL_FAILURE
+
+
+def checkpoint_inspect_command(args: argparse.Namespace) -> int:
+    report = inspect_checkpoint(args.path, trust=args.trust)
+    _print_json(report.to_dict()) if args.json else print(report.summary())
+    return 0 if not report.errors else EXIT_CHECKPOINT_ERROR
+
+
+def checkpoint_verify_command(args: argparse.Namespace) -> int:
+    report = verify_checkpoint(args.path, trust=args.trust)
+    _print_json(report.to_dict()) if args.json else print(report.summary())
+    return 0
 
 
 def train_command(args: argparse.Namespace) -> int:
@@ -375,6 +433,36 @@ def build_parser() -> argparse.ArgumentParser:
     info_parser.add_argument("--json", action="store_true")
     info_parser.set_defaults(func=info_command)
 
+    doctor_parser = subparsers.add_parser("doctor", help="Run local ArcLM diagnostics")
+    doctor_parser.add_argument("--json", action="store_true")
+    doctor_parser.add_argument("--config")
+    doctor_parser.add_argument("--checkpoint")
+    doctor_parser.add_argument("--run-dir", default="runs")
+    doctor_parser.add_argument("--cache-dir", default=".arclm/cache")
+    doctor_parser.set_defaults(func=doctor_command)
+
+    config_parser = subparsers.add_parser("config", help="Validate, show, and migrate ArcLM configuration files")
+    config_sub = config_parser.add_subparsers(dest="config_command", required=True)
+    config_validate = config_sub.add_parser("validate", help="Validate an ArcLM JSON/TOML config")
+    config_validate.add_argument("config")
+    config_validate.add_argument("--json", action="store_true")
+    config_validate.add_argument("--permissive", action="store_true")
+    config_validate.add_argument("--allow-env", action="store_true")
+    config_validate.set_defaults(func=config_validate_command)
+    config_show = config_sub.add_parser("show", help="Show effective typed configuration")
+    config_show.add_argument("config")
+    config_show.add_argument("--permissive", action="store_true")
+    config_show.add_argument("--allow-env", action="store_true")
+    config_show.add_argument("--show-secrets", action="store_true")
+    config_show.set_defaults(func=config_show_command)
+    config_migrate = config_sub.add_parser("migrate", help="Migrate an older ArcLM config to the current schema")
+    config_migrate.add_argument("config")
+    config_migrate.add_argument("--output")
+    config_migrate.add_argument("--target-version", default="1")
+    config_migrate.add_argument("--json", action="store_true")
+    config_migrate.add_argument("--permissive", action="store_true")
+    config_migrate.set_defaults(func=config_migrate_command)
+
     data_parser = subparsers.add_parser("data", help="Dataset tools")
     data_sub = data_parser.add_subparsers(dest="data_command", required=True)
     _add_data_common(data_sub.add_parser("inspect", help="Inspect records"))
@@ -448,6 +536,28 @@ def build_parser() -> argparse.ArgumentParser:
     load_check = model_sub.add_parser("load-check", help="Check whether a model can be loaded")
     _add_model_options(load_check)
     load_check.set_defaults(func=model_load_check_command)
+    certify_parser = model_sub.add_parser("certify", help="Run a model-family certification protocol")
+    certify_parser.add_argument("source")
+    certify_parser.add_argument("--family", default="unknown")
+    certify_parser.add_argument("--revision")
+    certify_parser.add_argument("--device", default="cpu")
+    certify_parser.add_argument("--max-steps", type=int, default=1)
+    certify_parser.add_argument("--no-training", action="store_true")
+    certify_parser.add_argument("--json", action="store_true")
+    certify_parser.set_defaults(func=model_certify_command)
+
+    checkpoint_parser = subparsers.add_parser("checkpoint", help="Inspect and verify ArcLM checkpoints")
+    checkpoint_sub = checkpoint_parser.add_subparsers(dest="checkpoint_command", required=True)
+    checkpoint_inspect = checkpoint_sub.add_parser("inspect", help="Inspect a checkpoint without loading unsafe weights")
+    checkpoint_inspect.add_argument("path")
+    checkpoint_inspect.add_argument("--trust", default="safe", choices=["safe", "trusted_local", "legacy_unsafe"])
+    checkpoint_inspect.add_argument("--json", action="store_true")
+    checkpoint_inspect.set_defaults(func=checkpoint_inspect_command)
+    checkpoint_verify = checkpoint_sub.add_parser("verify", help="Verify a checkpoint manifest and integrity hashes")
+    checkpoint_verify.add_argument("path")
+    checkpoint_verify.add_argument("--trust", default="safe", choices=["safe", "trusted_local", "legacy_unsafe"])
+    checkpoint_verify.add_argument("--json", action="store_true")
+    checkpoint_verify.set_defaults(func=checkpoint_verify_command)
 
     train_parser = subparsers.add_parser("train", help="Train a native ArcLM causal LM")
     train_parser.add_argument("--config")
@@ -588,6 +698,11 @@ def main(argv: Iterable[str] | None = None) -> int:
             raise
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_TRAINING_ERROR
+    except CheckpointError as exc:
+        if args.traceback:
+            raise
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_CHECKPOINT_ERROR
     except OptionalDependencyError as exc:
         if args.traceback:
             raise

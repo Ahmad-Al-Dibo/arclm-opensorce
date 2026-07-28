@@ -185,6 +185,15 @@ markers = [
   "integration: cross-component integration tests",
   "benchmark: benchmark smoke tests",
   "security: security smoke tests",
+  "unit: fast unit tests",
+  "checkpoint: checkpoint-format and checkpoint-security tests",
+  "config: configuration-schema and migration tests",
+  "compatibility: public API and compatibility-policy tests",
+  "scale: dataset scale smoke tests",
+  "cpu: CPU-only certification and runtime tests",
+  "model_certification: model-family certification tests",
+  "gpu: tests that require real CUDA hardware",
+  "gpu_certification: GPU certification tests that require real CUDA hardware",
 ]
 
 [tool.ruff]
@@ -238,3 +247,16 @@ no_site_packages = true
 disable_error_code = ["import-untyped"]
 ignore_errors = true
 exclude = "(docs|site|build|dist|examples)"
+
+[[tool.mypy.overrides]]
+module = [
+  "arclm.stability",
+  "arclm.release",
+  "arclm.doctor",
+  "arclm.resources",
+  "arclm.security",
+]
+ignore_errors = false
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_return_any = true

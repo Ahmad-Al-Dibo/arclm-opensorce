@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.9.0.dev0
+
+- Added a central public API stability manifest and stable API snapshot tests.
+- Added schema-versioned typed ArcLM workflow configuration with strict parsing,
+  explicit environment expansion, redacted effective config export, and
+  migration reporting for legacy field names.
+- Added formal checkpoint manifest inspection, safe/trusted/legacy loading
+  policies, hash verification, and checkpoint CLI commands.
+- Added explicit device and precision validation and an `arclm doctor` command.
+- Added model-certification protocol scaffolding, release artifact checksums,
+  package-content scanning, and SBOM generation helpers.
+- Added experimental CPU certification for the tiny random Llama-compatible
+  Hugging Face test artifact.
+- Added Phase 4 hardening tests for configuration, checkpoint security,
+  API compatibility, diagnostics, and CLI surfaces.
+
 ## 0.8.0.dev0
 
 - Added streaming dataset sources, deterministic sharding, deterministic

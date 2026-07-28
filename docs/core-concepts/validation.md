@@ -1,6 +1,6 @@
 # Validation
 
-Validation in `0.8.0.dev0` includes structured dataset reports:
+Validation in `0.9.0` includes structured dataset reports:
 
 - `validate_records(records, schema=..., strict=...)` validates without removing rows.
 - `PreprocessPipeline` returns drop reason counts.

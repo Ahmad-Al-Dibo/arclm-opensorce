@@ -1,6 +1,6 @@
 # Data at Scale
 
-ArcLM `0.8.0.dev0` adds repeatable streaming dataset sources for JSONL, JSON, CSV, text files, directories, and user iterables.
+ArcLM `0.9.0` includes repeatable streaming dataset sources for JSONL, JSON, CSV, text files, directories, and user iterables.
 
 ```python
 from arclm.data import open_dataset, analyze_dataset, split_dataset
@@ -30,4 +30,3 @@ Implemented scale APIs:
 - `arclm.data.find_duplicates`
 - `arclm.data.check_leakage`
 - `arclm.data.analyze_dataset`
-

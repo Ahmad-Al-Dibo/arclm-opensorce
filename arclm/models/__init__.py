@@ -236,8 +236,14 @@ def inspect_model_support(
         report.training_support = capability.training
         report.inference_support = capability.inference
         report.known_limitations = list(capability.known_limitations)
-    else:
+    elif _is_llama_family(report.model_type, report.detected_architecture, str(source)):
         capability = get_model_capability("Llama")
+        report.support_level = capability.status
+        report.training_support = capability.training
+        report.inference_support = capability.inference
+        report.known_limitations = list(capability.known_limitations)
+    else:
+        capability = get_model_capability("Mistral")
         report.support_level = COMPATIBLE_UNTESTED
         report.training_support = capability.training
         report.inference_support = capability.inference
@@ -348,6 +354,11 @@ def _is_gpt2_family(model_type: Optional[str], architecture: Optional[str]) -> b
 def _is_qwen_family(model_type: Optional[str], architecture: Optional[str], source: str) -> bool:
     text = " ".join([str(model_type or ""), str(architecture or ""), source]).lower()
     return "qwen" in text
+
+
+def _is_llama_family(model_type: Optional[str], architecture: Optional[str], source: str) -> bool:
+    text = " ".join([str(model_type or ""), str(architecture or ""), source]).lower()
+    return "llama" in text
 
 
 def _torch_dtype(precision: str):

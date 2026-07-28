@@ -67,7 +67,14 @@ nav:
   - Tokenization Workflows: tokenization-workflows.md
   - Workflow Runner: workflow-runner.md
   - Security: security.md
+  - API Stability: api-stability.md
+  - Typed Configuration: typed-configuration.md
+  - Checkpoint Specification: checkpoint-specification.md
+  - Threat Model: threat-model.md
+  - Operations Guide: operations-guide.md
+  - Compatibility Policy: compatibility-policy.md
   - Release Readiness: release-readiness.md
+  - Release Candidate Checklist: release-candidate-checklist.md
   - Examples:
       - Prepare a Text Dataset: examples/prepare-text-dataset.md
       - Validate a Dataset: examples/validate-dataset.md
@@ -101,3 +108,15 @@ nav:
       - Public API Inventory: audit/public-api-inventory.md
       - Documentation Gaps: audit/documentation-gaps.md
       - Production Readiness: production-readiness.md
+  - Handover:
+      - Overview: handover/README.md
+      - System Map: handover/01-systeemkaart.md
+      - Architecture Layers: handover/02-architectuurlagen.md
+      - Data Workflows: handover/03-data-workflows.md
+      - Model Loading and Support: handover/04-model-loading-en-support.md
+      - Training, Checkpoints, Runs: handover/05-training-checkpoints-en-runs.md
+      - Configuration and CLI: handover/06-configuratie-en-cli.md
+      - Security and Release: handover/07-security-en-release.md
+      - Testing Strategy: handover/08-teststrategie.md
+      - Risks and Technical Debt: handover/09-risicos-en-technische-schuld.md
+      - Change Playbooks: handover/10-playbooks-voor-wijzigingen.md

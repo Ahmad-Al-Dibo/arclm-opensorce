@@ -2,7 +2,7 @@
 
 ArcLM is a focused Python framework for preparing language-model data and building reproducible workflows for causal language models.
 
-ArcLM `0.8.0.dev0` is not a general machine-learning framework and should not be treated as production-ready yet. Its strongest supported paths are data-first workflows, streaming dataset preparation, native ArcLM causal-language-model checkpoints, and certified tiny GPT-2 Hugging Face integration tests.
+ArcLM is the open-source edition of a simple, production-oriented toolkit for data-first causal-language-model workflows. It focuses on clear dataset preparation, validation, tokenization, native compact GPT-style models, safe checkpoint inspection, and explicitly verified Hugging Face causal-LM integrations.
 
 ## Purpose
 
@@ -31,9 +31,9 @@ The framework puts dataset preparation first because most training and fine-tuni
 
 ## Project Status
 
-Development version: `0.8.0.dev0`. Current released version: `0.6.1`.
+Development version: `0.9.0.dev0`.
 
-Status: pre-1.0 framework development. Public APIs are usable but still need stronger validation, automated documentation checks, model-family verification, and a formal deprecation policy before a stable production release.
+Status: active open-source framework development. ArcLM keeps the public surface intentionally small: stable data-preparation APIs, typed workflow configuration, structured reports, conservative checkpoint handling, and model support that is documented by verification level.
 
 ## Supported Model Focus
 
@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory() as tmp:
 - [API Reference](docs/api-reference/index.md)
 - [CLI Reference](docs/cli-reference.md)
 - [Migration Guide](docs/migration-guide.md)
-- [Production Readiness](docs/production-readiness.md)
+- [Operational Readiness](docs/production-readiness.md)
 - [Roadmap](docs/roadmap.md)
 
 ## Examples
@@ -163,14 +163,13 @@ pip install -e ".[hf,peft]"
 python examples/08_huggingface_sft.py
 ```
 
-## Honest Limitations
+## Scope Boundaries
 
-- ArcLM native models are compact GPT-style models, not production-scale LLM architectures.
+- ArcLM native models are compact GPT-style causal models intended for lightweight training, testing, and reproducible workflows.
 - Hugging Face model loading is limited to causal language models through `AutoModelForCausalLM`.
 - Qwen examples are reproducible examples, not automated release certification.
 - Encoder-only and seq2seq models are out of scope for the current public workflow.
-- The CLI still contains older pathways that need consolidation with `train_model`.
-- Production readiness requires stronger validation, typed configs, full CI coverage, and a release/deprecation policy.
+- The open-source edition prioritizes simple, auditable workflows over supporting every model family or training strategy.
 
 ## Contributing
 

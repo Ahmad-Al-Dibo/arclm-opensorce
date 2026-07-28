@@ -2,7 +2,7 @@
 
 ArcLM is a focused Python framework for preparing language-model data and building reproducible workflows for causal language models.
 
-ArcLM `0.8.0.dev0` is a pre-1.0 project. Its reliable foundations include schema validation, composable data pipelines, streaming dataset sources, tokenization caching, native ArcLM causal-language-model training/inference, and a certified tiny GPT-2 Hugging Face workflow.
+ArcLM is the open-source edition of a simple, production-oriented framework for data-first causal-language-model workflows. Its foundations include schema validation, composable data pipelines, streaming dataset sources, tokenization caching, native ArcLM causal-language-model training/inference, typed workflow configuration, safe checkpoint inspection, and certified tiny GPT-2 Hugging Face workflow tests.
 
 ## Workflow
 
@@ -24,5 +24,5 @@ Start with [Installation](installation.md), then follow the [Quick Start](quick-
 - [Model Loading Guide](model-guide/loading-models.md)
 - [Training Guide](training-guide/training-configuration.md)
 - [API Reference](api-reference/index.md)
-- [Production Readiness](production-readiness.md)
+- [Operational Readiness](production-readiness.md)
 - [Roadmap](roadmap.md)

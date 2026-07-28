@@ -14,7 +14,7 @@ from arclm.data import (
 from arclm.exceptions import DatasetFormatError
 
 
-pytestmark = pytest.mark.integration
+pytestmark = [pytest.mark.integration, pytest.mark.scale]
 
 
 def test_streaming_jsonl_repeatable_and_malformed_report(tmp_path):

@@ -8,6 +8,7 @@ include requirements-dev.txt
 recursive-include docs *.md
 recursive-include templates *.html
 recursive-include arclm/templates *.html
+recursive-include tests/fixtures *.json
 include examples/README.md
 include examples/01_quickstart.py
 include examples/02_tokenization.py

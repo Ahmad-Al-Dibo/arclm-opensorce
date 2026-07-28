@@ -1,15 +1,21 @@
 # Release Readiness
 
-Phase 3 prepares a `0.8.0.dev0` development line with:
+Phase 4 moves the development line to `0.9.0`.
 
-- streaming dataset sources
-- deterministic sharding and splitting
-- data-quality reports
-- tokenization caching
-- reproducibility fingerprints
-- local run directories
-- workflow dry-runs
-- benchmark smoke tests
-- staged Ruff and MyPy configuration
+Implemented release-candidate foundations:
 
-ArcLM is still not ready for `1.0.0`; report schemas and workflow configuration should remain provisional until more release cycles validate them.
+- public API stability manifest and snapshot tests
+- schema-versioned typed configuration
+- configuration migration reports
+- safe checkpoint inspection and hash verification
+- explicit checkpoint loading policies
+- device and precision validation
+- `arclm doctor`
+- release artifact checksums, content scanning, and SBOM helpers
+- model-certification protocol scaffolding
+- experimental Llama-family CPU certification using `hf-internal-testing/tiny-random-LlamaForCausalLM`
+
+The open-source framework is ready for focused hardening and release-candidate
+testing around the certified CPU workflows. GPU certification, strict typing
+across the whole legacy package, additional fully certified model families, and
+resume-equivalence evidence remain gates for broader compatibility claims.

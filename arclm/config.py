@@ -2,12 +2,16 @@
 Configuration Module - Centralized settings
 """
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import MISSING, dataclass, fields, is_dataclass, asdict, field
 from pathlib import Path
 import json
+import os
+import warnings
+from typing import Any, Mapping
 
 import torch
 from .config_validation import validate_training_config
+from .exceptions import ConfigurationError
 
 class Config:
     
@@ -487,3 +491,457 @@ def get_instruction_tuning_config(
         **kwargs
     )
     return config
+
+
+CONFIG_SCHEMA_VERSION = "1"
+
+
+@dataclass(frozen=True)
+class RunConfig:
+    """Run-directory and reproducibility configuration."""
+
+    name: str = "workflow"
+    output_dir: str = "runs"
+    seed: int = 42
+
+
+@dataclass(frozen=True)
+class DataConfig:
+    """Dataset source configuration."""
+
+    path: str = ""
+    format: str = "jsonl"
+    schema: str = "text"
+    streaming: bool = True
+    strict: bool = False
+    malformed: str = "raise"
+
+
+@dataclass(frozen=True)
+class ValidationConfig:
+    """Dataset validation behavior."""
+
+    enabled: bool = True
+    strict: bool = False
+    allow_empty: bool = False
+
+
+@dataclass(frozen=True)
+class QualityConfig:
+    """Dataset quality-analysis options."""
+
+    enabled: bool = True
+    checks: list[str] = field(default_factory=list)
+    include_samples: bool = False
+    redact_samples: bool = True
+
+
+@dataclass(frozen=True)
+class PreprocessingConfig:
+    """Preprocessing options consumed by ArcLM workflow helpers."""
+
+    deduplicate: bool = True
+    deduplicate_fields: list[str] = field(default_factory=list)
+    normalize_duplicates: bool = True
+
+
+@dataclass(frozen=True)
+class SplitConfig:
+    """Deterministic dataset splitting options."""
+
+    train: float = 0.8
+    validation: float = 0.1
+    test: float = 0.1
+    strategy: str = "hash"
+    key: str | None = None
+    group_key: str | None = None
+    split_field: str | None = None
+    seed: int = 42
+
+
+@dataclass(frozen=True)
+class CacheConfig:
+    """Cache behavior for deterministic workflow steps."""
+
+    enabled: bool = True
+    dir: str = ".arclm/cache"
+    read_only: bool = False
+
+
+@dataclass(frozen=True)
+class TokenizationConfig:
+    """Tokenizer configuration for workflow tokenization."""
+
+    tokenizer: str = "gpt2"
+    schema: str = "text"
+    max_length: int | None = None
+    truncation: bool = True
+    padding: bool = False
+    cache: bool = True
+    cache_dir: str | None = None
+
+
+@dataclass(frozen=True)
+class ModelConfig:
+    """Model loading and support-validation configuration."""
+
+    name: str = "gpt2"
+    task: str = "causal-lm"
+    revision: str | None = None
+    device: str = "auto"
+    precision: str = "auto"
+    trust_remote_code: bool = False
+    local_files_only: bool = False
+
+
+@dataclass(frozen=True)
+class TrainingConfig:
+    """Configuration consumed by the unified training facade."""
+
+    enabled: bool = False
+    epochs: int = 1
+    batch_size: int = 1
+    learning_rate: float = 2e-4
+    max_steps: int | None = None
+    seed: int = 42
+    resume_from_checkpoint: str | None = None
+
+
+@dataclass(frozen=True)
+class EvaluationConfig:
+    """Evaluation-stage configuration."""
+
+    enabled: bool = True
+    max_batches: int | None = None
+    metrics: list[str] = field(default_factory=lambda: ["generation_length", "latency"])
+
+
+@dataclass(frozen=True)
+class InferenceConfig:
+    """Inference-stage configuration."""
+
+    max_new_tokens: int = 16
+    temperature: float = 0.0
+    batch_size: int = 1
+
+
+@dataclass(frozen=True)
+class SecurityConfig:
+    """Security-sensitive workflow defaults."""
+
+    loading_policy: str = "safe"
+    allow_env_expansion: bool = False
+    redact_secrets: bool = True
+
+
+@dataclass(frozen=True)
+class ArcLMConfig:
+    """Typed ArcLM workflow configuration schema.
+
+    Schema version ``1`` is the first release-candidate configuration shape.
+    It is strict by default and designed to be shared by Python APIs, CLI, JSON,
+    TOML, run metadata, and workflow fingerprints.
+    """
+
+    schema_version: str = CONFIG_SCHEMA_VERSION
+    run: RunConfig = field(default_factory=RunConfig)
+    data: DataConfig = field(default_factory=DataConfig)
+    validation: ValidationConfig = field(default_factory=ValidationConfig)
+    quality: QualityConfig = field(default_factory=QualityConfig)
+    preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
+    split: SplitConfig = field(default_factory=SplitConfig)
+    tokenization: TokenizationConfig = field(default_factory=TokenizationConfig)
+    model: ModelConfig = field(default_factory=ModelConfig)
+    training: TrainingConfig = field(default_factory=TrainingConfig)
+    evaluation: EvaluationConfig = field(default_factory=EvaluationConfig)
+    inference: InferenceConfig = field(default_factory=InferenceConfig)
+    cache: CacheConfig = field(default_factory=CacheConfig)
+    security: SecurityConfig = field(default_factory=SecurityConfig)
+
+    def to_dict(self, *, redact: bool = True) -> dict[str, Any]:
+        data = asdict(self)
+        return _redact_secrets(data) if redact and self.security.redact_secrets else data
+
+    def to_workflow_dict(self) -> dict[str, Any]:
+        """Return a dict compatible with the existing workflow runner."""
+
+        cache_dir = self.tokenization.cache_dir or self.cache.dir
+        return {
+            "schema_version": self.schema_version,
+            "run": asdict(self.run),
+            "data": asdict(self.data),
+            "validation": asdict(self.validation),
+            "quality": asdict(self.quality),
+            "deduplication": {
+                "fields": self.preprocessing.deduplicate_fields or None,
+                "normalize": self.preprocessing.normalize_duplicates,
+            },
+            "split": asdict(self.split),
+            "tokenization": {**asdict(self.tokenization), "cache_dir": cache_dir if self.tokenization.cache and self.cache.enabled else None},
+            "model": {
+                "source": self.model.name,
+                "task": self.model.task,
+                "revision": self.model.revision,
+                "device": self.model.device,
+                "precision": self.model.precision,
+                "trust_remote_code": self.model.trust_remote_code,
+                "local_files_only": self.model.local_files_only,
+            },
+            "training": asdict(self.training),
+            "evaluate": asdict(self.evaluation),
+        }
+
+
+@dataclass(frozen=True)
+class ConfigMigrationReport:
+    """Configuration migration result."""
+
+    source_schema_version: str
+    target_schema_version: str
+    config: ArcLMConfig
+    fields_renamed: list[str] = field(default_factory=list)
+    fields_removed: list[str] = field(default_factory=list)
+    defaults_inserted: list[str] = field(default_factory=list)
+    values_transformed: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    manual_actions_required: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        data["config"] = self.config.to_dict()
+        return data
+
+
+def load_arclm_config(
+    source: str | Path | Mapping[str, Any],
+    *,
+    permissive: bool = False,
+    allow_env: bool = False,
+) -> ArcLMConfig:
+    """Load and validate an ArcLM configuration from JSON, TOML, or a mapping."""
+
+    base_dir = Path.cwd()
+    if isinstance(source, Mapping):
+        raw = dict(source)
+    else:
+        path = Path(source)
+        base_dir = path.parent.resolve()
+        raw = _load_config_file(path)
+    if "version" in raw and "schema_version" not in raw:
+        warnings.warn("Configuration field 'version' is deprecated; use 'schema_version'.", DeprecationWarning, stacklevel=2)
+        raw["schema_version"] = raw.pop("version")
+    if str(raw.get("schema_version", CONFIG_SCHEMA_VERSION)) != CONFIG_SCHEMA_VERSION:
+        migration = migrate_config(raw, target_version=CONFIG_SCHEMA_VERSION, permissive=permissive, base_dir=base_dir)
+        return migration.config
+    if allow_env:
+        raw = _expand_env(raw)
+    elif _contains_env_reference(raw):
+        raise ConfigurationError("Environment-variable expansion is disabled. Pass allow_env=True to expand ${NAME} values.")
+    return _parse_dataclass(ArcLMConfig, raw, path="config", permissive=permissive, base_dir=base_dir)
+
+
+def validate_arclm_config(source: str | Path | Mapping[str, Any], *, permissive: bool = False, allow_env: bool = False) -> ArcLMConfig:
+    """Validate and return a typed ArcLM configuration."""
+
+    return load_arclm_config(source, permissive=permissive, allow_env=allow_env)
+
+
+def migrate_config(
+    source: str | Path | Mapping[str, Any],
+    *,
+    target_version: str = CONFIG_SCHEMA_VERSION,
+    output: str | Path | None = None,
+    permissive: bool = False,
+    base_dir: str | Path | None = None,
+) -> ConfigMigrationReport:
+    """Migrate an older ArcLM configuration shape to schema version ``1``."""
+
+    if target_version != CONFIG_SCHEMA_VERSION:
+        raise ConfigurationError(f"Unsupported target schema version: {target_version}")
+    if isinstance(source, Mapping):
+        raw = dict(source)
+        root_dir = Path(base_dir or Path.cwd())
+    else:
+        path = Path(source)
+        raw = _load_config_file(path)
+        root_dir = path.parent.resolve()
+    source_version = str(raw.get("schema_version", raw.get("version", "0")))
+    fields_renamed: list[str] = []
+    defaults_inserted: list[str] = []
+    warnings_list: list[str] = []
+
+    migrated = dict(raw)
+    if "version" in migrated and "schema_version" not in migrated:
+        migrated["schema_version"] = migrated.pop("version")
+        fields_renamed.append("version -> schema_version")
+    migrated["schema_version"] = CONFIG_SCHEMA_VERSION
+
+    if "model" in migrated and isinstance(migrated["model"], Mapping):
+        model = dict(migrated["model"])
+        if "source" in model and "name" not in model:
+            model["name"] = model.pop("source")
+            fields_renamed.append("model.source -> model.name")
+        migrated["model"] = model
+    for section in ["run", "data", "model"]:
+        if section not in migrated:
+            migrated[section] = {}
+            defaults_inserted.append(section)
+    config = _parse_dataclass(ArcLMConfig, migrated, path="config", permissive=permissive, base_dir=root_dir)
+    if output is not None:
+        Path(output).write_text(json.dumps(config.to_dict(redact=False), indent=2, sort_keys=True), encoding="utf-8")
+    return ConfigMigrationReport(
+        source_schema_version=source_version,
+        target_schema_version=CONFIG_SCHEMA_VERSION,
+        config=config,
+        fields_renamed=fields_renamed,
+        defaults_inserted=defaults_inserted,
+        warnings=warnings_list,
+    )
+
+
+def _load_config_file(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise ConfigurationError(f"Configuration file does not exist: {path}")
+    text = path.read_text(encoding="utf-8")
+    if path.suffix.lower() == ".json":
+        return json.loads(text)
+    if path.suffix.lower() == ".toml":
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        return tomllib.loads(text)
+    raise ConfigurationError("Configuration files must be JSON or TOML.")
+
+
+def _parse_dataclass(cls: type[Any], raw: Mapping[str, Any], *, path: str, permissive: bool, base_dir: Path) -> Any:
+    if not is_dataclass(cls):
+        raise TypeError("cls must be a dataclass")
+    field_map = {item.name: item for item in fields(cls)}
+    unknown = sorted(set(raw) - set(field_map))
+    if unknown and not permissive:
+        raise ConfigurationError(f"{path}: unknown field(s): {', '.join(unknown)}")
+    values: dict[str, Any] = {}
+    for name, item in field_map.items():
+        if name in raw:
+            value = raw[name]
+        elif item.default is not MISSING:
+            value = item.default
+        elif item.default_factory is not MISSING:  # type: ignore[comparison-overlap]
+            value = item.default_factory()  # type: ignore[misc]
+        else:
+            raise ConfigurationError(f"{path}.{name}: missing required field")
+        nested_type = item.type
+        if isinstance(value, Mapping) and hasattr(nested_type, "__dataclass_fields__"):
+            value = _parse_dataclass(nested_type, value, path=f"{path}.{name}", permissive=permissive, base_dir=base_dir)
+        values[name] = _normalize_config_value(name, value, base_dir=base_dir)
+    config = cls(**values)
+    _validate_typed_config(config, path=path)
+    return config
+
+
+def _normalize_config_value(name: str, value: Any, *, base_dir: Path) -> Any:
+    if name in {"path", "output_dir", "cache_dir", "dir", "resume_from_checkpoint"} and isinstance(value, str) and value:
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            return str((base_dir / candidate).resolve())
+    return value
+
+
+def _validate_typed_config(config: Any, *, path: str) -> None:
+    if isinstance(config, ArcLMConfig):
+        if config.schema_version != CONFIG_SCHEMA_VERSION:
+            raise ConfigurationError(f"{path}.schema_version: expected {CONFIG_SCHEMA_VERSION!r}")
+        if not config.data.path:
+            raise ConfigurationError(f"{path}.data.path: path is required")
+    elif isinstance(config, DataConfig):
+        if config.format not in {"json", "jsonl", "csv", "txt"}:
+            raise ConfigurationError(f"{path}.format: unsupported dataset format {config.format!r}")
+        if config.schema not in {"text", "prompt_completion", "instruction", "conversation"}:
+            raise ConfigurationError(f"{path}.schema: unsupported schema {config.schema!r}")
+        if config.malformed not in {"raise", "report"}:
+            raise ConfigurationError(f"{path}.malformed: must be 'raise' or 'report'")
+    elif isinstance(config, ModelConfig):
+        if config.task != "causal-lm":
+            raise ConfigurationError(f"{path}.task: ArcLM currently supports task='causal-lm' only")
+        if config.device not in {"auto", "cpu", "cuda"} and not str(config.device).startswith("cuda:"):
+            raise ConfigurationError(f"{path}.device: unsupported device {config.device!r}")
+        if config.trust_remote_code:
+            warnings.warn("trust_remote_code=True disables ArcLM's safe default and must only be used for trusted model code.", RuntimeWarning, stacklevel=2)
+    elif isinstance(config, TrainingConfig):
+        if config.epochs <= 0:
+            raise ConfigurationError(f"{path}.epochs: must be greater than zero")
+        if config.batch_size <= 0:
+            raise ConfigurationError(f"{path}.batch_size: must be greater than zero")
+        if not 0 < config.learning_rate <= 1:
+            raise ConfigurationError(f"{path}.learning_rate: must be in (0, 1]")
+        if config.max_steps is not None and config.max_steps <= 0:
+            raise ConfigurationError(f"{path}.max_steps: must be positive")
+    elif isinstance(config, SplitConfig):
+        total = config.train + config.validation + config.test
+        if abs(total - 1.0) > 1e-9:
+            raise ConfigurationError(f"{path}: split ratios must sum to 1.0")
+        if config.strategy not in {"hash", "random", "chronological"}:
+            raise ConfigurationError(f"{path}.strategy: unsupported split strategy {config.strategy!r}")
+
+
+def _contains_env_reference(value: Any) -> bool:
+    if isinstance(value, str):
+        return "${" in value
+    if isinstance(value, Mapping):
+        return any(_contains_env_reference(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_env_reference(item) for item in value)
+    return False
+
+
+def _expand_env(value: Any) -> Any:
+    if isinstance(value, str):
+        expanded = os.path.expandvars(value)
+        if "${" in expanded:
+            raise ConfigurationError(f"Missing environment variable in value: {value}")
+        return expanded
+    if isinstance(value, Mapping):
+        return {key: _expand_env(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_expand_env(item) for item in value]
+    return value
+
+
+def _redact_secrets(value: Any) -> Any:
+    if isinstance(value, str):
+        lowered = value.lower()
+        if any(marker in lowered for marker in ["token", "secret", "password", "api_key", "apikey"]) or value.startswith("hf_"):
+            return "[REDACTED]"
+        return value
+    if isinstance(value, Mapping):
+        return {key: ("[REDACTED]" if any(marker in str(key).lower() for marker in ["token", "secret", "password", "api_key", "apikey"]) else _redact_secrets(item)) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_redact_secrets(item) for item in value]
+    return value
+
+
+__all__ = [
+    "ArcLMConfig",
+    "CacheConfig",
+    "CONFIG_SCHEMA_VERSION",
+    "Config",
+    "ConfigMigrationReport",
+    "DataConfig",
+    "EvaluationConfig",
+    "InferenceConfig",
+    "ModelConfig",
+    "PreprocessingConfig",
+    "QualityConfig",
+    "RunConfig",
+    "SecurityConfig",
+    "SplitConfig",
+    "TokenizationConfig",
+    "TrainingConfig",
+    "create_config",
+    "get_finetuning_config",
+    "get_instruction_tuning_config",
+    "load_arclm_config",
+    "migrate_config",
+    "validate_arclm_config",
+]

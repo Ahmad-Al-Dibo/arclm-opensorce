@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import warnings
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -15,6 +16,48 @@ SECRET_PATTERNS = [
     re.compile(r"hf_[A-Za-z0-9]{20,}"),
     re.compile(r"(?i)(api[_-]?key|secret|password)\s*[:=]\s*['\"]?[^'\"\s]+"),
 ]
+
+
+@dataclass(frozen=True)
+class LoadingPolicy:
+    """Explicit checkpoint/model loading trust policy."""
+
+    mode: str = "safe"
+    allow_pickle: bool = False
+    allow_remote_code: bool = False
+    verify_hashes: bool = True
+
+    @classmethod
+    def safe(cls) -> "LoadingPolicy":
+        return cls("safe", allow_pickle=False, allow_remote_code=False, verify_hashes=True)
+
+    @classmethod
+    def trusted_local(cls) -> "LoadingPolicy":
+        return cls("trusted_local", allow_pickle=True, allow_remote_code=False, verify_hashes=True)
+
+    @classmethod
+    def legacy_unsafe(cls) -> "LoadingPolicy":
+        warnings.warn(
+            "legacy_unsafe loading may invoke pickle deserialization or untrusted code. Use only for trusted local artifacts.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return cls("legacy_unsafe", allow_pickle=True, allow_remote_code=True, verify_hashes=False)
+
+    @classmethod
+    def from_value(cls, value: str | "LoadingPolicy") -> "LoadingPolicy":
+        if isinstance(value, LoadingPolicy):
+            return value
+        if value == "safe":
+            return cls.safe()
+        if value == "trusted_local":
+            return cls.trusted_local()
+        if value == "legacy_unsafe":
+            return cls.legacy_unsafe()
+        raise ValueError("loading policy must be 'safe', 'trusted_local', or 'legacy_unsafe'")
+
+    def to_dict(self) -> dict[str, object]:
+        return asdict(self)
 
 
 @dataclass
@@ -87,11 +130,12 @@ def artifact_digest(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def validate_safe_model_options(*, trust_remote_code: bool = False) -> None:
+def validate_safe_model_options(*, trust_remote_code: bool = False, policy: str | LoadingPolicy = "safe") -> None:
     """Fail if unsafe remote-code execution would be enabled implicitly."""
 
-    if trust_remote_code:
+    resolved = LoadingPolicy.from_value(policy)
+    if trust_remote_code and not resolved.allow_remote_code:
         raise ValueError("trust_remote_code=True must be an explicit user decision and is not allowed in safe mode.")
 
 
-__all__ = ["SecurityIssue", "SecurityReport", "artifact_digest", "scan_for_secrets", "validate_safe_model_options"]
+__all__ = ["LoadingPolicy", "SecurityIssue", "SecurityReport", "artifact_digest", "scan_for_secrets", "validate_safe_model_options"]

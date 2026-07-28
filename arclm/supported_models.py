@@ -129,7 +129,28 @@ SUPPORTED_MODELS: tuple[ModelCapability, ...] = (
         ],
     ),
     ModelCapability(
-        family="Llama, Mistral, Gemma, Falcon through Hugging Face",
+        family="Llama through Hugging Face",
+        example_models=["hf-internal-testing/tiny-random-LlamaForCausalLM"],
+        architecture="Decoder-only causal LM loaded with AutoModelForCausalLM",
+        status=EXPERIMENTAL,
+        training="Minimal CPU SFT step certified for the tiny random Llama test artifact.",
+        inference="CPU inference and deterministic greedy generation certified for the tiny random Llama test artifact.",
+        quantization="No Llama-specific quantization verification.",
+        device_requirements="CPU works for the tiny certification artifact; real Llama-family models require substantially more memory.",
+        tokenizer_requirements="AutoTokenizer.from_pretrained must succeed; chat-template behavior must be validated for conversation data.",
+        attention_implementation="Transformers implementation.",
+        precision_support="auto and fp32 on CPU; GPU precision is not certified in this environment.",
+        known_limitations=[
+            "Experimental support is based on hf-internal-testing/tiny-random-LlamaForCausalLM, not production Llama checkpoints.",
+            "GPU support, large checkpoints, and chat-template correctness remain unverified.",
+        ],
+        verification=[
+            "arclm.certification.certify_model_family",
+            "manual Phase 4 CPU certification run on hf-internal-testing/tiny-random-LlamaForCausalLM",
+        ],
+    ),
+    ModelCapability(
+        family="Mistral, Gemma, Falcon through Hugging Face",
         example_models=["owner/model-id"],
         architecture="Expected decoder-only causal LM loaded with AutoModelForCausalLM",
         status=COMPATIBLE_UNTESTED,
@@ -164,7 +185,7 @@ SUPPORTED_MODELS: tuple[ModelCapability, ...] = (
             "ArcLM's public workflows target causal language modeling.",
             "Use a framework designed for masked-LM or seq2seq tasks instead.",
         ],
-        verification=["Project scope decision documented for 0.8.0.dev0."],
+        verification=["Project scope decision documented for 0.9.0.dev0."],
     ),
 )
 

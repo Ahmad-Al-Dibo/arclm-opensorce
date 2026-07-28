@@ -12,12 +12,19 @@ arclm --help
 ```bash
 arclm version
 arclm info
+arclm doctor --json
+arclm config validate arclm.json
+arclm config show arclm.json
+arclm config migrate old.json --output arclm.json
 arclm data inspect data.jsonl --json
 arclm data validate data.jsonl --schema text --strict --json
 arclm data prepare data.jsonl --output clean.jsonl --schema text
 arclm model inspect hf-internal-testing/tiny-random-gpt2 --json
 arclm model list
 arclm model load-check hf-internal-testing/tiny-random-gpt2
+arclm model certify hf-internal-testing/tiny-random-gpt2 --family gpt2 --json
+arclm checkpoint inspect runs/example/checkpoint --json
+arclm checkpoint verify runs/example/checkpoint
 arclm train --data data.txt --output models/model.pth
 arclm evaluate --model models/model.pth --data test.txt
 arclm eval --model models/model.pth --data test.txt

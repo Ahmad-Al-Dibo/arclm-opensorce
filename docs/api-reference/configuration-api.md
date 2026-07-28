@@ -16,3 +16,8 @@
 | `normalize_device` | `arclm.normalize_device` | Validate and normalize device values. | `device` | `str` | Stable-ish |
 | `normalize_precision` | `arclm.normalize_precision` | Validate and normalize precision values. | `precision` | `str` | Stable-ish |
 | `validate_training_config` | `arclm.validate_training_config` | Validate native training config in place. | `config` | config | Stable-ish |
+| `ArcLMConfig` | `arclm.config.ArcLMConfig` | Typed workflow configuration schema version `1`. | dataclass fields | config object | Stable |
+| `load_arclm_config` | `arclm.config.load_arclm_config` | Load JSON/TOML/mapping config with strict validation. | `source`, `permissive`, `allow_env` | `ArcLMConfig` | Stable |
+| `validate_arclm_config` | `arclm.config.validate_arclm_config` | Validate typed ArcLM config. | `source`, flags | `ArcLMConfig` | Stable |
+| `migrate_config` | `arclm.config.migrate_config` | Migrate old config fields to schema version `1`. | `source`, `target_version`, `output` | `ConfigMigrationReport` | Stable |
+| `RunConfig`, `DataConfig`, `ModelConfig`, `TrainingConfig` | `arclm.config` | Typed config sections. | dataclass fields | section object | Stable |

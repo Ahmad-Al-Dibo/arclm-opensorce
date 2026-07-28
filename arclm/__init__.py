@@ -9,8 +9,27 @@ from pathlib import Path
 import torch
 
 from ._version import __version__
-from .config import Config, create_config
-from .checkpoints import CheckpointInspectionReport, inspect_checkpoint, load_trusted_checkpoint
+from .config import (
+    ArcLMConfig,
+    CacheConfig,
+    Config,
+    ConfigMigrationReport,
+    DataConfig,
+    EvaluationConfig as WorkflowEvaluationConfig,
+    InferenceConfig as WorkflowInferenceConfig,
+    ModelConfig,
+    PreprocessingConfig,
+    QualityConfig,
+    RunConfig as WorkflowRunConfig,
+    SecurityConfig,
+    SplitConfig,
+    create_config,
+    load_arclm_config,
+    migrate_config,
+    validate_arclm_config,
+)
+from .checkpoints import CheckpointInspectionReport, inspect_checkpoint, load_trusted_checkpoint, verify_checkpoint, write_checkpoint_manifest
+from .doctor import DoctorReport, run_doctor
 from .data import (
     ConversationRecord,
     DataBundle,
@@ -110,6 +129,9 @@ from .models import (
     inspect_model_support,
     load_model as load_model_bundle,
 )
+from .resources import DeviceConfig, DeviceSelection, ResourceLimits, resource_info
+from .security import LoadingPolicy
+from .stability import Stability, api_manifest, cli_manifest, stable_api_paths
 from .logging import configure_logging, get_logger
 from .cache import CacheStats, clear_cache, inspect_cache
 from .config_validation import (
@@ -202,10 +224,38 @@ __all__ = [
     "inspect_model_support",
     "load_model_bundle",
     "Config",
+    "ArcLMConfig",
+    "CacheConfig",
+    "ConfigMigrationReport",
+    "DataConfig",
+    "ModelConfig",
+    "PreprocessingConfig",
+    "QualityConfig",
+    "SecurityConfig",
+    "SplitConfig",
+    "WorkflowEvaluationConfig",
+    "WorkflowInferenceConfig",
+    "WorkflowRunConfig",
     "create_config",
+    "load_arclm_config",
+    "migrate_config",
+    "validate_arclm_config",
     "CheckpointInspectionReport",
     "inspect_checkpoint",
     "load_trusted_checkpoint",
+    "verify_checkpoint",
+    "write_checkpoint_manifest",
+    "DoctorReport",
+    "run_doctor",
+    "LoadingPolicy",
+    "DeviceConfig",
+    "DeviceSelection",
+    "ResourceLimits",
+    "resource_info",
+    "Stability",
+    "api_manifest",
+    "cli_manifest",
+    "stable_api_paths",
     "CacheStats",
     "clear_cache",
     "inspect_cache",

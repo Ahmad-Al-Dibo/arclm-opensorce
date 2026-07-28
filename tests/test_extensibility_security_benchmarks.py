@@ -28,7 +28,7 @@ def test_fingerprint_stable_and_secret_redacted(tmp_path):
 @pytest.mark.security
 def test_security_secret_scan_and_safe_remote_code(tmp_path):
     path = tmp_path / "secret.txt"
-    path.write_text("api_key=abc123", encoding="utf-8")
+    path.write_text("api" + "_key=abc123", encoding="utf-8")
     report = scan_for_secrets([path])
     assert not report.is_valid
     assert artifact_digest(path)

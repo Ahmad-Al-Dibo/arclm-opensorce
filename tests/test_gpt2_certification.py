@@ -7,7 +7,14 @@ from arclm import DataPipeline, train_sft
 from arclm.models import load_model
 
 
-pytestmark = [pytest.mark.integration, pytest.mark.hf, pytest.mark.transformers, pytest.mark.slow]
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.hf,
+    pytest.mark.transformers,
+    pytest.mark.slow,
+    pytest.mark.cpu,
+    pytest.mark.model_certification,
+]
 
 
 def test_tiny_gpt2_certified_cpu_inference_sft_save_reload(tmp_path):

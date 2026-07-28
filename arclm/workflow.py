@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 from ._version import __version__
+from .config import load_arclm_config
 from .data_quality import analyze_dataset, find_duplicates, split_dataset
 from .data_sources import open_dataset
 from .exceptions import ArcLMError, ConfigurationError
@@ -89,11 +90,16 @@ def load_workflow_config(config: str | Path | dict[str, Any]) -> dict[str, Any]:
     """Load JSON or TOML workflow configuration."""
 
     if isinstance(config, dict):
+        if "schema_version" in config:
+            return load_arclm_config(config, permissive=True).to_workflow_dict()
         return dict(config)
     path = Path(config)
     text = path.read_text(encoding="utf-8")
     if path.suffix.lower() == ".json":
-        return json.loads(text)
+        raw = json.loads(text)
+        if "schema_version" in raw:
+            return load_arclm_config(path, permissive=True).to_workflow_dict()
+        return raw
     if path.suffix.lower() == ".toml":
         try:
             import tomllib
@@ -102,7 +108,10 @@ def load_workflow_config(config: str | Path | dict[str, Any]) -> dict[str, Any]:
                 import tomli as tomllib  # type: ignore[no-redef]
             except Exception as exc:
                 raise ConfigurationError("TOML workflow files require Python 3.11+ or tomli.") from exc
-        return tomllib.loads(text)
+        raw = tomllib.loads(text)
+        if "schema_version" in raw:
+            return load_arclm_config(path, permissive=True).to_workflow_dict()
+        return raw
     raise ConfigurationError("Workflow config must be .json or .toml.")
 
 

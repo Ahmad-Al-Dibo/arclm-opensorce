@@ -1,6 +1,6 @@
 # Migration Guide
 
-ArcLM `0.8.0.dev0` keeps existing public APIs in place while adding production-foundation APIs.
+ArcLM `0.9.0` keeps existing public APIs in place while adding release-candidate hardening APIs.
 
 ## Changed Positioning
 
@@ -31,4 +31,4 @@ The `logics` objects remain importable from `arclm` for compatibility but are no
 
 ## Version Recommendation
 
-The repository should use development version `0.8.0.dev0` and plan the next stable release as `0.8.0`; ArcLM is not ready for `1.0.0`.
+The repository should use development version `0.9.0` and plan the first release candidate as `0.9.0rc1`; the `1.0.0` line should wait until the compatibility gates in the release checklist are complete.
