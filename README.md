@@ -73,7 +73,7 @@ For local development:
 pip install -e ".[dev,preprocess,hf,web]"
 ```
 
-ArcLM declares Python `>=3.9,<3.13`.
+ArcLM declares Python `>3.9,<3.13`.
 
 ## Minimal Quick Start
 
