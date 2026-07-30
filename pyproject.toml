@@ -7,7 +7,7 @@ name = "arclm"
 dynamic = ["version"]
 description = "A compact PyTorch toolkit for native language-model training and Hugging Face SFT."
 readme = "README.md"
-requires-python = ">=3.9,<3.13"
+requires-python = ">3.9,<3.13"
 license = "Apache-2.0"
 authors = [
   { name = "Ahmad Al Dibo"}
