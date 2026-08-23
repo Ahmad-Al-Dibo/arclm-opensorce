@@ -129,7 +129,7 @@ from .models import (
     inspect_model_support,
     load_model as load_model_bundle,
 )
-from .vnext import Model, ModelRegistry, ModelSpec, Runtime
+from .vnext import Dataset, Lab, Model, ModelRegistry, ModelSpec, Runtime, Trainer as PublicTrainer
 from .resources import DeviceConfig, DeviceSelection, ResourceLimits, resource_info
 from .security import LoadingPolicy
 from .stability import Stability, api_manifest, cli_manifest, stable_api_paths
@@ -200,7 +200,7 @@ from .tokenizers import (
     create_tokenizer,
     get_tokenizer_from_config,
 )
-from .trainer import Trainer
+from .trainer import Trainer as LegacyTrainer
 from .training import (
     BaseModelAdapter,
     BaseModelLoader,
@@ -220,8 +220,10 @@ __author__ = "Ahmad Al Dibo"
 __all__ = [
     "ArcLM",
     "MiniGPT",
+    "Lab",
     "ModelBundle",
     "Model",
+    "Dataset",
     "ModelRegistry",
     "ModelSpec",
     "Runtime",
@@ -313,6 +315,7 @@ __all__ = [
     "TrainingError",
     "UnsupportedModelError",
     "Trainer",
+    "LegacyTrainer",
     "Generator",
     "DEFAULT_MODEL_PATH",
     "LoadedModel",
@@ -430,6 +433,8 @@ __all__ = [
     "create_simple_interface_app",
     "run_simple_interface",
 ]
+
+Trainer = PublicTrainer
 
 
 def get_version():

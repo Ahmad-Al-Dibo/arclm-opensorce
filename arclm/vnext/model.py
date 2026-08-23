@@ -74,7 +74,14 @@ class Model:
         model.eval()
         return cls(model=model, config=config, spec=spec, runtime=runtime, tokenizer=tokenizer, artifact=artifact)
 
-    def save(self, path: str | Path, *, overwrite: bool = False) -> ArcModelArtifact:
+    def save(
+        self,
+        path: str | Path,
+        *,
+        layout: str = "auto",
+        shard_size: str | int | None = None,
+        overwrite: bool = False,
+    ) -> ArcModelArtifact:
         """Save this model as an ArcLM-native `.arcmodel` artifact."""
 
         if self.tokenizer is None:
@@ -86,6 +93,8 @@ class Model:
             tokenizer=self.tokenizer,
             architecture_id=self.spec.architecture_id,
             metadata={"runtime": self.runtime.to_dict()},
+            layout=layout,
+            shard_size=shard_size,
             overwrite=overwrite,
         )
         self.artifact = artifact
@@ -137,6 +146,24 @@ class Model:
             "artifact": str(self.artifact.path) if self.artifact is not None else None,
             "tokenizer": type(self.tokenizer).__name__ if self.tokenizer is not None else None,
         }
+
+    def get_tensor(self, name: str):
+        """Return a model tensor by state-dict name."""
+
+        state = self.model.state_dict()
+        if name not in state:
+            raise KeyError(f"Unknown tensor: {name}")
+        return state[name]
+
+    def set_tensor(self, name: str, value: Any) -> None:
+        """Replace one tensor in the model state dict."""
+
+        state = self.model.state_dict()
+        if name not in state:
+            raise KeyError(f"Unknown tensor: {name}")
+        if tuple(state[name].shape) != tuple(value.shape):
+            raise ValueError(f"Tensor shape mismatch for {name}: expected {tuple(state[name].shape)}, got {tuple(value.shape)}.")
+        state[name].copy_(value)
 
     @staticmethod
     def _load_tokenizer(payload: dict[str, Any]) -> Tokenizer | SentencePieceTokenizer:
