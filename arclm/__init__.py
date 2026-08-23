@@ -129,6 +129,7 @@ from .models import (
     inspect_model_support,
     load_model as load_model_bundle,
 )
+from .vnext import Model, ModelRegistry, ModelSpec, Runtime
 from .resources import DeviceConfig, DeviceSelection, ResourceLimits, resource_info
 from .security import LoadingPolicy
 from .stability import Stability, api_manifest, cli_manifest, stable_api_paths
@@ -220,6 +221,10 @@ __all__ = [
     "ArcLM",
     "MiniGPT",
     "ModelBundle",
+    "Model",
+    "ModelRegistry",
+    "ModelSpec",
+    "Runtime",
     "ModelSupportReport",
     "inspect_model_support",
     "load_model_bundle",

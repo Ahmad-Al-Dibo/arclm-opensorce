@@ -165,7 +165,7 @@ Changelog = "https://github.com/ahmad-al-dibo/arclm/blob/main/CHANGELOG.md"
 arclm = "arclm.cli:main"
 
 [tool.setuptools]
-packages = ["arclm", "arclm.logics", "arclm.loaders", "arclm.models", "arclm.preprocess", "arclm.templates", "arclm.tokenizers", "arclm.training"]
+packages = ["arclm", "arclm.artifacts", "arclm.logics", "arclm.loaders", "arclm.models", "arclm.preprocess", "arclm.runtime", "arclm.templates", "arclm.tokenizers", "arclm.training", "arclm.vnext"]
 
 [tool.setuptools.package-data]
 arclm = ["templates/*.html"]

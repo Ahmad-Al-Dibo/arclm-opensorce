@@ -99,6 +99,8 @@ class PreprocessPipeline:
             report_dir = Path(report_dir)
             if self.config.report_json:
                 write_json_report(report_dir / "report.json", report)
+                report["report_json"] = write_json_report(report_dir / "report.json", report)
             if self.config.report_html:
                 write_html_report(report_dir / "report.html", report)
+                report["report_html"] = write_html_report(report_dir / "report.html", report)
         return report

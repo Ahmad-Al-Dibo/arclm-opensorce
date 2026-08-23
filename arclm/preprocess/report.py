@@ -6,8 +6,10 @@ from typing import Dict, Any
 
 
 def write_json_report(path: str | Path, data: Dict[str, Any]) -> None:
+    json_data = json.dumps(data, ensure_ascii=False, indent=2)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    Path(path).write_text(json_data, encoding="utf-8")
+    return json_data
 
 
 def write_html_report(path: str | Path, data: Dict[str, Any]) -> None:
@@ -25,3 +27,4 @@ def write_html_report(path: str | Path, data: Dict[str, Any]) -> None:
 </body></html>"""
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(html, encoding="utf-8")
+    return html
