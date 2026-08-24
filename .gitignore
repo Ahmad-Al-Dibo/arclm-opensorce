@@ -28,13 +28,12 @@ data/*
 *.safetensors
 *.in
 
-./train.py
-./usage.py
-./setup.py
-./PROJECT_MAP.md
-.gitignore
+/train.py
+/usage.py
+/setup.py
+/PROJECT_MAP.md
 .gitattributes
-./project.toml
+/pyproject.toml
 
 notebooks/
 adapter/
