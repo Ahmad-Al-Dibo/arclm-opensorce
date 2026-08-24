@@ -1,12 +1,12 @@
 # Run Inference
 
 ```python
-from arclm import load_model
+from arclm import Model, Runtime
 
-loaded = load_model("model.pth", device="cpu")
-text = loaded.predict("ArcLM", max_new_tokens=12, top_k=5)
+runtime = Runtime.auto(prefer="cpu")
+loaded = Model.load("model.arcmodel", runtime=runtime)
+text = loaded.generate("ArcLM", max_new_tokens=12)
 print(text)
 ```
 
-For a complete local script, see `examples/11_inference.py`.
-
+For a complete local script, see `examples/company_level/11_inference.py`.

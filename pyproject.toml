@@ -45,6 +45,7 @@ dependencies = [
   "torch>=2.1,<3",
   "numpy>=1.24,<3",
   "sentencepiece>=0.2,<0.3",
+  "safetensors>=0.4,<1",
   "transformers>=4.51,<6",
   "tomli>=2; python_version<'3.11'",
 ]
@@ -165,7 +166,7 @@ Changelog = "https://github.com/ahmad-al-dibo/arclm/blob/main/CHANGELOG.md"
 arclm = "arclm.cli:main"
 
 [tool.setuptools]
-packages = ["arclm", "arclm.logics", "arclm.loaders", "arclm.models", "arclm.preprocess", "arclm.templates", "arclm.tokenizers", "arclm.training"]
+packages = ["arclm", "arclm.artifacts", "arclm.core", "arclm.logics", "arclm.loaders", "arclm.models", "arclm.preprocess", "arclm.runtime", "arclm.templates", "arclm.tokenizers", "arclm.training", "arclm.vnext"]
 
 [tool.setuptools.package-data]
 arclm = ["templates/*.html"]

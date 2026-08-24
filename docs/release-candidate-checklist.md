@@ -1,6 +1,6 @@
 # Release Candidate Checklist
 
-Before tagging `0.9.0rc1`:
+Before tagging `1.0.0`:
 
 1. freeze stable API changes
 2. run the full Python `3.9` to `3.12` CI matrix
@@ -20,5 +20,5 @@ Before tagging `0.9.0rc1`:
 16. review changelog and deprecations
 17. publish to TestPyPI only after approval
 18. install from TestPyPI and rerun smoke checks
-19. tag `0.9.0rc1`
-20. fix only release-blocking issues before final `0.9.0`
+19. tag `1.0.0`
+20. fix only release-blocking issues before publishing the final package

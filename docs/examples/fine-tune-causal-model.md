@@ -3,15 +3,22 @@
 Native fine-tuning:
 
 ```python
-from arclm import train_model
+from arclm import Dataset, Model, Runtime, Trainer
 
-result = train_model(
-    mode="finetune",
-    data="domain.txt",
-    output="domain-model.pth",
-    checkpoint="base-model.pth",
-    num_epochs=1,
-)
+runtime = Runtime.auto(prefer="cpu")
+model = Model.load("base-model.arcmodel", runtime=runtime)
+dataset = Dataset.load("domain.txt")
+
+history = Trainer(
+    model=model,
+    dataset=dataset,
+    epochs=1,
+    batch_size=2,
+    learning_rate=5e-4,
+).train(mode="full_finetune")
+
+model.save("domain-model.arcmodel", overwrite=True)
+print(history["train_losses"])
 ```
 
 Hugging Face SFT:
@@ -28,4 +35,3 @@ result = train_sft(
 ```
 
 The Hugging Face example may download model files and requires optional dependencies.
-

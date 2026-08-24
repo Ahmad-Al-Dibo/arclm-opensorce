@@ -15,4 +15,4 @@ from arclm.models import load_model
 bundle = load_model("gpt2", precision="float32", device="cpu")
 ```
 
-Native ArcLM does not expose a fully certified high-level mixed-precision training API in 0.9.0.
+Native ArcLM does not expose a fully certified high-level mixed-precision training API in 1.0.0.

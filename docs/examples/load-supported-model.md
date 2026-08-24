@@ -1,12 +1,12 @@
 # Load A Supported Model
 
-Native ArcLM checkpoints are officially supported.
+Native ArcLM `.arcmodel` artifacts are supported through the new public Model API.
 
 ```python
-from arclm import load_model
+from arclm import Model, Runtime
 
-loaded = load_model("model.pth", device="cpu")
-print(loaded.config)
+loaded = Model.load("model.arcmodel", runtime=Runtime.auto(prefer="cpu"))
+print(loaded.inspect())
 ```
 
 Inspect external models before loading:
@@ -16,4 +16,3 @@ from arclm import inspect_model_source
 
 print(inspect_model_source("gpt2").format_report())
 ```
-

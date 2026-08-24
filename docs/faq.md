@@ -10,7 +10,7 @@ No. ArcLM targets causal language models. Generic Hugging Face loading uses `Aut
 
 ## Can I use BERT or T5?
 
-Not through the current public workflow. Encoder-only and seq2seq models are not supported in `0.9.0`.
+Not through the current public workflow. Encoder-only and seq2seq models are not supported in `1.0.0`.
 
 ## What should I use first?
 

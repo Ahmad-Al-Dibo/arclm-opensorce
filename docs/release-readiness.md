@@ -1,6 +1,7 @@
 # Release Readiness
 
-Phase 4 moves the development line to `0.9.0`.
+ArcLM `1.0.0` promotes the project to an ArcLM-first, self-driving framework
+for causal language-model workflows.
 
 Implemented release-candidate foundations:
 

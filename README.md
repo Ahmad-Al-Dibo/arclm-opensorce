@@ -2,7 +2,7 @@
 
 ArcLM is a focused Python framework for preparing language-model data and building reproducible workflows for causal language models.
 
-ArcLM is the open-source edition of a simple, production-oriented toolkit for data-first causal-language-model workflows. It focuses on clear dataset preparation, validation, tokenization, native compact GPT-style models, safe checkpoint inspection, and explicitly verified Hugging Face causal-LM integrations.
+ArcLM is the open-source edition of a simple, production-oriented toolkit for data-first causal-language-model workflows. It focuses on clear dataset preparation, validation, tokenization, native compact GPT-style models, native artifacts, and explicitly verified Hugging Face causal-LM integrations.
 
 ## Purpose
 
@@ -22,11 +22,11 @@ The framework puts dataset preparation first because most training and fine-tuni
 - Clean, filter, transform, split, and tokenize records with composable dataset helpers.
 - Run JSONL preprocessing reports with `PreprocessPipeline`.
 - Build word or SentencePiece tokenizers with `Tokenizer` and `SentencePieceTokenizer`.
-- Train compact native decoder-only ArcLM models with `train_model`.
-- Load native checkpoints with `load_model`.
+- Train compact native decoder-only ArcLM models with `Lab`, `Dataset`, `Model`, and `Trainer`.
+- Save and load native `.arcmodel` artifacts with `Model.save()` and `Model.load()`.
 - Inspect and load Hugging Face causal-LM sources with `inspect_model_source` and `load_any_model`.
 - Run Hugging Face SFT with `train_sft` when optional dependencies and hardware are available.
-- Generate metrics and diagnostics for native ArcLM checkpoints.
+- Generate metrics and diagnostics for native ArcLM artifacts.
 - Start the optional Flask simple interface with `python -m arclm --run simple-interface`.
 
 ## Project Status
@@ -83,13 +83,13 @@ This example uses only public ArcLM APIs and trains a tiny native causal model o
 from pathlib import Path
 import tempfile
 
-from arclm import DataProcessor, Tokenizer, load_model, train_model
+from arclm import DataProcessor, Lab, Model, Runtime, Tokenizer
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     raw_path = root / "records.jsonl"
     train_path = root / "train.txt"
-    model_path = root / "model.pth"
+    artifact_path = root / "model.arcmodel"
 
     raw_path.write_text(
         '{"text": "ArcLM prepares language model data."}\n'
@@ -114,24 +114,17 @@ with tempfile.TemporaryDirectory() as tmp:
         encoding="utf-8",
     )
 
-    train_model(
-        mode="pretrain",
-        data=str(train_path),
-        output=str(model_path),
-        tokenizer_type="word",
-        max_vocab=64,
-        embed_dim=16,
-        num_blocks=1,
-        block_size=8,
-        batch_size=2,
-        num_epochs=1,
-        validation_split=0.0,
-        training_log_interval=0,
-        device="cpu",
+    lab = Lab(runtime=Runtime.auto(prefer="cpu"))
+    model = lab.pretrain(
+        train_path,
+        size="tiny",
+        epochs=1,
+        learning_rate=1e-3,
     )
+    model.save(artifact_path, overwrite=True)
 
-    loaded = load_model(model_path, device="cpu")
-    print(loaded.predict("ArcLM", max_new_tokens=4, top_k=3))
+    loaded = Model.load(artifact_path, runtime=Runtime.auto(prefer="cpu"))
+    print(loaded.generate("ArcLM", max_new_tokens=4))
 ```
 
 ## Documentation
@@ -151,16 +144,16 @@ with tempfile.TemporaryDirectory() as tmp:
 Local examples are in [examples](examples/README.md). Start with:
 
 ```bash
-python examples/01_quickstart.py
-python examples/03_data_processing.py
-python examples/11_inference.py
+python examples/students_level/01_quickstart.py
+python examples/students_level/04_pretraining.py
+python examples/company_level/11_inference.py
 ```
 
 Examples that use Hugging Face models may download model files and need optional dependencies:
 
 ```bash
 pip install -e ".[hf,peft]"
-python examples/08_huggingface_sft.py
+python examples/company_level/08_huggingface_sft.py
 ```
 
 ## Scope Boundaries
