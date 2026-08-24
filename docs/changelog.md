@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0
+
+- Reframed the README around ArcLM's self-driving route: inspect, validate,
+  prepare, tokenize, load, train or fine-tune, evaluate, save, and report.
+- Clarified the public positioning: ArcLM is its own framework, with PyTorch
+  and Hugging Face treated as dependencies or backends.
+- Updated package metadata and promoted the package version to `1.0.0`.
+- Shortened the public project overview so the framework direction is clearer
+  for new users.
+- Expanded the docs site with a Framework API page and a generated full public
+  API inventory covering exported functions, classes, and public methods.
+
 ## 0.9.0
 
 - Added API stability manifest and snapshot tests.

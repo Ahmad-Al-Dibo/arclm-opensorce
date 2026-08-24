@@ -1,10 +1,13 @@
 # Migration Guide
 
-ArcLM `0.9.0` keeps existing public APIs in place while adding release-candidate hardening APIs.
+ArcLM `1.0.0` keeps existing public APIs in place while promoting the
+ArcLM-first, self-driving framework route.
 
 ## Changed Positioning
 
-ArcLM should now be described as a data-first framework for causal language models, not a broad machine-learning toolkit.
+ArcLM should now be described as its own framework for causal language models,
+not as a PyTorch toolkit or broad machine-learning utility collection. PyTorch,
+Hugging Face, and related tools are dependencies or backends behind ArcLM APIs.
 
 ## Preferred Imports
 
@@ -31,4 +34,6 @@ The `logics` objects remain importable from `arclm` for compatibility but are no
 
 ## Version Recommendation
 
-The repository should use development version `0.9.0` and plan the first release candidate as `0.9.0rc1`; the `1.0.0` line should wait until the compatibility gates in the release checklist are complete.
+The repository now uses package version `1.0.0`. Future releases should keep
+semantic versioning discipline: patch releases for fixes, minor releases for
+compatible public features, and major releases for breaking public API changes.

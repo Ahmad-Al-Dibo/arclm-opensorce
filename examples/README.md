@@ -37,6 +37,9 @@ python examples/company_level/13_diagnostics.py
 python examples/company_level/14_logic_policy_check.py
 python examples/company_level/15_load_output_arcmodel.py
 python examples/company_level/15_load_output_arcmodel.py --prompt "ArcLM"
+python examples/company_level/16_finetune_output_arcmodel.py output/MiniGPT.arcmodel
+python examples/company_level/16_finetune_output_arcmodel.py output/MiniGPT.arcmodel --pretrain-max-chars 512 --sft-max-records 1
+python examples/company_level/17_pretrain_3m_gtx1050ti.py
 ```
 
 Includes:
@@ -47,6 +50,8 @@ Includes:
 - `13_diagnostics.py`: inspect top-k predictions.
 - `14_logic_policy_check.py`: symbolic deployment-policy checks.
 - `15_load_output_arcmodel.py`: load and use `output/*.arcmodel`, including trusted local legacy `.pt` checkpoints.
+- `16_finetune_output_arcmodel.py`: download pre-fine-tune and SFT datasets, prepare ArcLM data, fine-tune, and save native `.arcmodel` outputs.
+- `17_pretrain_3m_gtx1050ti.py`: pretrain a 3M+ parameter native model with conservative GTX 1050 Ti settings.
 
 ## Advanced Research Level
 
