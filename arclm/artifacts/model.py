@@ -14,7 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from safetensors.torch import load, load_file, save_file
+
 from .._version import __version__
+from ..exceptions import ArtifactIntegrityError
 
 
 @dataclass(frozen=True)
@@ -34,6 +37,8 @@ class ArcModelManifest:
     tokenizer_hash: str
     layout: str = "directory"
     weight_files: list[str] = field(default_factory=list)
+    tensor_metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
+    tensor_index_hash: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -54,7 +59,7 @@ class ArcModelArtifact:
     MANIFEST = "manifest.json"
     CONFIG = "config.json"
     TOKENIZER = "tokenizer.json"
-    WEIGHTS = "weights.pt"
+    WEIGHTS = "weights/model.safetensors"
     WEIGHTS_DIR = "weights"
     SHARD_INDEX = "weights/index.json"
 
@@ -151,32 +156,24 @@ class ArcModelArtifact:
         tokenizer_payload = tokenizer.to_json() if hasattr(tokenizer, "to_json") else {}
         tokenizer_path.write_text(json.dumps(tokenizer_payload, indent=2, sort_keys=True, default=str), encoding="utf-8")
 
-        import torch
-
         state_dict = model.state_dict()
         if layout == "sharded":
             weights_root = root / cls.WEIGHTS_DIR
             weights_root.mkdir()
-            shard_name = "shard-00001.pt"
-            weights_path = weights_root / shard_name
-            torch.save(state_dict, weights_path)
-            index = {
-                "format": "arcweights-index",
-                "schema_version": "1",
-                "shard_size": shard_size,
-                "weight_map": {name: shard_name for name in state_dict},
-                "shards": [shard_name],
-            }
+            index = cls._write_shards(weights_root, state_dict, shard_size=shard_size)
             (root / cls.SHARD_INDEX).write_text(json.dumps(index, indent=2, sort_keys=True), encoding="utf-8")
             weights_file = cls.SHARD_INDEX
-            weight_files = [f"{cls.WEIGHTS_DIR}/{shard_name}"]
-            weights_hash = cls._sha256(weights_path)
+            weight_files = [f"{cls.WEIGHTS_DIR}/{item['file']}" for item in index["shards"]]
+            weights_hash = cls._combined_hash(root, weight_files)
+            tensor_index_hash = cls._sha256(root / cls.SHARD_INDEX)
         else:
             weights_path = root / cls.WEIGHTS
-            torch.save(state_dict, weights_path)
+            weights_path.parent.mkdir(parents=True, exist_ok=True)
+            save_file(cls._cpu_state_dict(state_dict), str(weights_path))
             weights_file = cls.WEIGHTS
             weight_files = [cls.WEIGHTS]
             weights_hash = cls._sha256(weights_path)
+            tensor_index_hash = None
 
         manifest = ArcModelManifest(
             artifact_id=f"arcmodel-{uuid.uuid4()}",
@@ -192,6 +189,8 @@ class ArcModelArtifact:
             tokenizer_hash=cls._sha256(tokenizer_path),
             layout=layout,
             weight_files=weight_files,
+            tensor_metadata=cls._tensor_metadata(state_dict),
+            tensor_index_hash=tensor_index_hash,
             metadata=dict(metadata or {}),
         )
         (root / cls.MANIFEST).write_text(
@@ -230,34 +229,33 @@ class ArcModelArtifact:
         """Read model weights."""
 
         manifest = self.manifest()
-        import torch
-
         if manifest.layout == "sharded":
             index = self._read_json(manifest.weights_file)
             if not index:
                 raise FileNotFoundError(f"Artifact shard index not found: {manifest.weights_file}")
-            shards = index.get("shards") or []
-            if len(shards) != 1:
-                raise ValueError("This ArcLM reader currently supports one-shard artifacts only.")
-            weights_path = f"{self.WEIGHTS_DIR}/{shards[0]}"
+            self._validate_index(index, manifest)
+            state: dict[str, Any] = {}
+            for shard in index.get("shards", []):
+                relative = f"{self.WEIGHTS_DIR}/{shard['file']}"
+                state.update(self._load_safetensors_member(relative, map_location=map_location))
         else:
-            weights_path = manifest.weights_file
-
-        with self._open_binary(weights_path) as handle:
-            try:
-                return torch.load(handle, map_location=map_location, weights_only=True)
-            except TypeError:
-                handle.seek(0)
-                return torch.load(handle, map_location=map_location)
+            state = self._load_safetensors_member(manifest.weights_file, map_location=map_location)
+        self._validate_state_dict(state, manifest)
+        return state
 
     def _validate_hashes(self, manifest: ArcModelManifest) -> None:
-        weight_file = manifest.weight_files[0] if manifest.weight_files else manifest.weights_file
-        weights_hash = self._sha256_member(weight_file)
+        if manifest.layout == "sharded":
+            weights_hash = self._combined_hash_members(manifest.weight_files)
+        else:
+            weights_hash = self._sha256_member(manifest.weights_file)
         tokenizer_hash = self._sha256_member(self.TOKENIZER)
         if weights_hash != manifest.weights_hash:
-            raise ValueError("Artifact weights hash does not match manifest.")
+            raise ArtifactIntegrityError("Artifact weights hash does not match manifest.")
         if tokenizer_hash != manifest.tokenizer_hash:
-            raise ValueError("Artifact tokenizer hash does not match manifest.")
+            raise ArtifactIntegrityError("Artifact tokenizer hash does not match manifest.")
+        if manifest.layout == "sharded" and manifest.tensor_index_hash:
+            if self._sha256_member(manifest.weights_file) != manifest.tensor_index_hash:
+                raise ArtifactIntegrityError("Artifact shard index hash does not match manifest.")
 
     def inspect(self) -> dict[str, Any]:
         """Return artifact metadata without exposing raw tensors."""
@@ -271,6 +269,7 @@ class ArcModelArtifact:
             "weights_hash": manifest.weights_hash,
             "tokenizer_hash": manifest.tokenizer_hash,
             "weight_files": list(manifest.weight_files),
+            "tensor_count": len(manifest.tensor_metadata),
             "metadata": dict(manifest.metadata),
         }
 
@@ -299,6 +298,127 @@ class ArcModelArtifact:
                 with archive.open(relative_path) as handle:
                     return self._sha256_stream(handle)
         return self._sha256(self.path / relative_path)
+
+    def _combined_hash_members(self, relative_paths: list[str]) -> str:
+        digest = hashlib.sha256()
+        for relative_path in sorted(relative_paths):
+            digest.update(relative_path.encode("utf-8"))
+            digest.update(self._sha256_member(relative_path).encode("utf-8"))
+        return digest.hexdigest()
+
+    @staticmethod
+    def _combined_hash(root: Path, relative_paths: list[str]) -> str:
+        digest = hashlib.sha256()
+        for relative_path in sorted(relative_paths):
+            digest.update(relative_path.encode("utf-8"))
+            digest.update(ArcModelArtifact._sha256(root / relative_path).encode("utf-8"))
+        return digest.hexdigest()
+
+    def _load_safetensors_member(self, relative_path: str, *, map_location: Any = "cpu") -> dict[str, Any]:
+        device = str(map_location)
+        if device.startswith("cuda"):
+            device = "cuda"
+        elif device != "cpu":
+            device = "cpu"
+        if self.path.is_file():
+            with zipfile.ZipFile(self.path) as archive:
+                return load(archive.read(relative_path))
+        return load_file(str(self.path / relative_path), device=device)
+
+    @classmethod
+    def _write_shards(cls, weights_root: Path, state_dict: dict[str, Any], *, shard_size: str | int | None) -> dict[str, Any]:
+        max_bytes = cls._parse_shard_size(shard_size)
+        shards: list[dict[str, Any]] = []
+        weight_map: dict[str, str] = {}
+        current: dict[str, Any] = {}
+        current_bytes = 0
+        shard_id = 1
+
+        def flush() -> None:
+            nonlocal current, current_bytes, shard_id
+            if not current:
+                return
+            filename = f"shard-{shard_id:05d}.safetensors"
+            save_file(cls._cpu_state_dict(current), str(weights_root / filename))
+            tensor_names = sorted(current)
+            byte_count = sum(cls._tensor_nbytes(tensor) for tensor in current.values())
+            shards.append({"file": filename, "hash": cls._sha256(weights_root / filename), "bytes": byte_count, "tensors": tensor_names})
+            for tensor_name in tensor_names:
+                weight_map[tensor_name] = filename
+            current = {}
+            current_bytes = 0
+            shard_id += 1
+
+        for name, tensor in state_dict.items():
+            tensor_bytes = cls._tensor_nbytes(tensor)
+            if current and current_bytes + tensor_bytes > max_bytes:
+                flush()
+            current[name] = tensor
+            current_bytes += tensor_bytes
+            if tensor_bytes >= max_bytes:
+                flush()
+        flush()
+        return {
+            "format": "arcweights-index",
+            "format_version": "1",
+            "schema_version": "1",
+            "encoding": "safetensors",
+            "max_shard_size_bytes": max_bytes,
+            "weight_map": weight_map,
+            "shards": shards,
+        }
+
+    @staticmethod
+    def _parse_shard_size(value: str | int | None) -> int:
+        if value is None:
+            return 1024 * 1024 * 1024
+        if isinstance(value, int):
+            if value <= 0:
+                raise ValueError("shard_size must be positive.")
+            return value
+        text = str(value).strip().lower().replace(" ", "")
+        units = {"b": 1, "kb": 1024, "mb": 1024**2, "gb": 1024**3}
+        for suffix, multiplier in sorted(units.items(), key=lambda item: len(item[0]), reverse=True):
+            if text.endswith(suffix):
+                number = float(text[: -len(suffix)])
+                return max(1, int(number * multiplier))
+        return int(text)
+
+    @staticmethod
+    def _cpu_state_dict(state_dict: dict[str, Any]) -> dict[str, Any]:
+        return {name: tensor.detach().cpu().contiguous() for name, tensor in state_dict.items()}
+
+    @staticmethod
+    def _tensor_nbytes(tensor: Any) -> int:
+        return int(tensor.numel() * tensor.element_size())
+
+    @staticmethod
+    def _tensor_metadata(state_dict: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        return {
+            name: {"shape": list(tensor.shape), "dtype": str(tensor.dtype).replace("torch.", "")}
+            for name, tensor in sorted(state_dict.items())
+        }
+
+    def _validate_state_dict(self, state: dict[str, Any], manifest: ArcModelManifest) -> None:
+        expected = manifest.tensor_metadata or {}
+        if expected and set(state) != set(expected):
+            raise ArtifactIntegrityError("Artifact tensor names do not match manifest.")
+        for name, meta in expected.items():
+            tensor = state[name]
+            if list(tensor.shape) != list(meta.get("shape", [])):
+                raise ArtifactIntegrityError(f"Artifact tensor shape mismatch for {name}.")
+
+    def _validate_index(self, index: dict[str, Any], manifest: ArcModelManifest) -> None:
+        if index.get("format") != "arcweights-index" or str(index.get("schema_version")) != "1":
+            raise ArtifactIntegrityError("Artifact shard index format is unsupported.")
+        weight_map = index.get("weight_map") or {}
+        expected_names = set(manifest.tensor_metadata)
+        if expected_names and set(weight_map) != expected_names:
+            raise ArtifactIntegrityError("Artifact shard index tensor names do not match manifest.")
+        for shard in index.get("shards", []):
+            relative = f"{self.WEIGHTS_DIR}/{shard['file']}"
+            if self._sha256_member(relative) != shard.get("hash"):
+                raise ArtifactIntegrityError(f"Artifact shard hash does not match index for {shard['file']}.")
 
     @staticmethod
     def _sha256(path: Path) -> str:

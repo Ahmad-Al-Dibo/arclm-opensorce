@@ -47,12 +47,22 @@ class CheckpointError(ArcLMError, RuntimeError):
     """Raised when checkpoint loading or saving fails."""
 
 
+class ArtifactError(ArcLMError, RuntimeError):
+    """Raised when an ArcLM native artifact cannot be read or written."""
+
+
+class ArtifactIntegrityError(ArtifactError):
+    """Raised when an ArcLM native artifact fails integrity validation."""
+
+
 class OptionalDependencyError(ArcLMError, ImportError):
     """Raised when an optional dependency is required but missing."""
 
 
 __all__ = [
     "ArcLMError",
+    "ArtifactError",
+    "ArtifactIntegrityError",
     "CheckpointError",
     "ConfigurationError",
     "DatasetError",

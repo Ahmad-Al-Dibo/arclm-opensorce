@@ -181,6 +181,8 @@ from .tokenization import TokenizationConfig, TokenizedDataset, tokenize_dataset
 from .workflow import WorkflowResult, WorkflowStageResult, run_workflow
 from .exceptions import (
     ArcLMError,
+    ArtifactError,
+    ArtifactIntegrityError,
     CheckpointError,
     ConfigurationError,
     DatasetError,
@@ -303,6 +305,8 @@ __all__ = [
     "validate_record",
     "validate_records",
     "ArcLMError",
+    "ArtifactError",
+    "ArtifactIntegrityError",
     "CheckpointError",
     "ConfigurationError",
     "DatasetError",

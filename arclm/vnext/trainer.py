@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..pipeline import build_trainer
+from ..core.training import AdapterStrategy, FullFineTuneStrategy, PretrainStrategy, TrainingEngine, TrainingEngineConfig
 from ..trainer import Trainer as LegacyTrainer
 from .dataset import Dataset
 from .model import Model
@@ -33,6 +33,35 @@ class TrainingPlan:
             "block_size": self.block_size,
             "runtime": self.runtime,
         }
+    
+    def summary(self) -> dict[str, Any]:
+            """Return a JSON-safe plan."""
+
+            summary = {
+                "strategy": self.strategy,
+                "epochs": self.epochs,
+                "batch_size": self.batch_size,
+                "learning_rate": self.learning_rate,
+                "block_size": self.block_size,
+                "runtime": self.runtime,
+            }
+
+            # print it in table view with colors:
+            try:
+                from rich.console import Console
+                from rich.table import Table
+
+                table = Table(title="Training Plan Summary")
+                table.add_column("Parameter", style="cyan", no_wrap=True)
+                table.add_column("Value", style="magenta")
+
+                for key, value in summary.items():
+                    table.add_row(key, str(value))
+
+                console = Console()
+                console.print(table)
+            except ImportError:
+                print("Install 'rich' to see a colored table summary.") 
 
 
 class Trainer:
@@ -61,6 +90,9 @@ class Trainer:
         self.batch_size = int(kwargs.pop("batch_size", getattr(model.config, "batch_size", 2) or 2))
         self.learning_rate = float(kwargs.pop("learning_rate", getattr(model.config, "learning_rate", 1e-3) or 1e-3))
         self.block_size = int(kwargs.pop("block_size", getattr(model.config, "block_size", 8) or 8))
+        self.weight_decay = float(kwargs.pop("weight_decay", getattr(model.config, "weight_decay", 0.0) or 0.0))
+        self.grad_clip = kwargs.pop("grad_clip", None)
+        self.checkpoint_interval = kwargs.pop("checkpoint_interval", None)
         if kwargs:
             unknown = ", ".join(sorted(kwargs))
             raise TypeError(f"Unknown Trainer option(s): {unknown}")
@@ -93,8 +125,8 @@ class Trainer:
             return self._legacy.get_train_history()
         return {"plan": self.plan.to_dict() if self.plan else None, "history": dict(self.history)}
 
-    def train(self, *args: Any, **kwargs: Any) -> Any:
-        """Train using the shared ArcLM training core."""
+    def train(self, *args: Any, mode: str = "pretrain", debug: bool = False, **kwargs: Any) -> Any:
+        """Train using the ArcLM Training Engine."""
 
         if self._legacy is not None:
             return self._legacy.train(*args, **kwargs)
@@ -114,7 +146,41 @@ class Trainer:
         )
         self.model.tokenizer = prepared.tokenizer
         self.model.config.vocab_size = prepared.tokenizer.get_vocab_size()
-        legacy = build_trainer(self.model.model, self.model.config)
-        legacy.train(prepared.train_loader, self.epochs)
-        self.history = legacy.get_train_history()
+        engine = TrainingEngine(
+            runtime=self.model.runtime,
+            config=TrainingEngineConfig(
+                epochs=self.epochs,
+                learning_rate=self.learning_rate,
+                weight_decay=self.weight_decay,
+                grad_clip=float(self.grad_clip) if self.grad_clip is not None else None,
+                checkpoint_interval=int(self.checkpoint_interval) if self.checkpoint_interval is not None else None,
+            ),
+        )
+        strategy = self._strategy(mode)
+        result = engine.fit(
+            model=self.model.model,
+            dataloader=prepared.train_loader,
+            strategy=strategy,
+            optimizer=kwargs.pop("optimizer", None),
+            scheduler=kwargs.pop("scheduler", None),
+            checkpoint_hook=kwargs.pop("checkpoint_hook", None),
+            validation_hook=kwargs.pop("validation_hook", None),
+            validation_data=kwargs.pop("validation_data", None),
+            debug=debug,
+        )
+        if kwargs:
+            unknown = ", ".join(sorted(kwargs))
+            raise TypeError(f"Unknown train option(s): {unknown}")
+        self.history = result.to_history()
         return self.history
+
+    @staticmethod
+    def _strategy(mode: str) -> Any:
+        normalized = str(mode or "pretrain").lower()
+        if normalized == "pretrain":
+            return PretrainStrategy()
+        if normalized == "full_finetune":
+            return FullFineTuneStrategy()
+        if normalized in {"adapter", "lora"}:
+            return AdapterStrategy("lora")
+        raise ValueError("mode must be one of: pretrain, full_finetune, adapter.")

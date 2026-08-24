@@ -78,8 +78,8 @@ SUPPORTED_MODELS: tuple[ModelCapability, ...] = (
             "tests/test_library_smoke.py",
             "tests/test_external_engine.py",
             "tests/test_instruction_sft.py",
-            "examples/01_quickstart.py",
-            "examples/11_inference.py",
+            "examples/students_level/01_quickstart.py",
+            "examples/company_level/11_inference.py",
         ],
     ),
     ModelCapability(
@@ -101,8 +101,8 @@ SUPPORTED_MODELS: tuple[ModelCapability, ...] = (
         verification=[
             "tests/test_smart_loader.py",
             "tests/test_gpt2_certification.py",
-            "examples/08_huggingface_sft.py",
-            "examples/09_lora_sft.py",
+            "examples/company_level/08_huggingface_sft.py",
+            "examples/advanced_research_level/09_lora_sft.py",
             "examples/15_custom_hf_sft_loop.py",
         ],
     ),
@@ -123,9 +123,9 @@ SUPPORTED_MODELS: tuple[ModelCapability, ...] = (
             "Remote code and chat-template behavior can change with upstream model packages.",
         ],
         verification=[
-            "examples/qwen3_0_6b_sft/README.md",
-            "examples/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py",
-            "examples/qwen3_0_6b_sft/test_base_model.py",
+            "examples/advanced_research_level/qwen3_0_6b_sft/README.md",
+            "examples/advanced_research_level/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py",
+            "examples/advanced_research_level/qwen3_0_6b_sft/test_base_model.py",
         ],
     ),
     ModelCapability(

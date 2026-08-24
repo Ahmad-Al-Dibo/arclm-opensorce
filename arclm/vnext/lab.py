@@ -43,21 +43,31 @@ class Lab:
 
         if task != "causal-lm":
             raise ValueError("Lab.create() currently supports task='causal-lm' only.")
+        tokenizer_option = overrides.pop("tokenizer", None)
         sizes = {
             "tiny": {"embed_dim": 8, "block_size": 4, "num_blocks": 1, "batch_size": 2},
             "small": {"embed_dim": 16, "block_size": 8, "num_blocks": 1, "batch_size": 2},
         }
         config = {**sizes.get(size, sizes["small"]), **overrides}
         dataset = data or self.last_dataset
-        tokenizer = None
+        tokenizer = self._coerce_tokenizer(tokenizer_option)
         if dataset is not None:
-            prepared = dataset.prepare(block_size=int(config["block_size"]), batch_size=int(config["batch_size"]))
+            prepared = dataset.prepare(tokenizer=tokenizer, block_size=int(config["block_size"]), batch_size=int(config["batch_size"]))
             tokenizer = prepared.tokenizer
+        elif tokenizer is not None:
+            config["vocab_size"] = tokenizer.get_vocab_size()
         elif "vocab_size" not in config:
             config["vocab_size"] = 256
         model = Model.create(architecture="arclm-native", tokenizer=tokenizer, runtime=self.runtime, **config)
         self.last_model = model
-        self.decisions.append({"stage": "model.create", "size": size, "config": model.config.to_dict()})
+        self.decisions.append(
+            {
+                "stage": "model.create",
+                "size": size,
+                "tokenizer": self._tokenizer_label(tokenizer_option, tokenizer),
+                "config": model.config.to_dict(),
+            }
+        )
         return model
 
     def plan(self, model: Model, data: Dataset, **options: Any) -> TrainingPlan:
@@ -69,21 +79,46 @@ class Lab:
         self.decisions.append({"stage": "training.plan", "plan": trainer.plan.to_dict()})
         return trainer.plan
 
-    def train(self, model: Model, data: Dataset, **options: Any) -> dict[str, Any]:
+    def train(self, model: Model, data: Dataset, debug: bool = False, **options: Any) -> dict[str, Any]:
         """Train a model through the shared high-level Trainer."""
 
         trainer = Trainer(model=model, dataset=data, **options)
         self.last_trainer = trainer
-        history = trainer.train()
+        history = trainer.train(debug=debug)
         self.decisions.append({"stage": "training.execute", "history": history})
         return history
 
-    def pretrain(self, data: str | Dataset, *, size: str = "small", **options: Any) -> Model:
+    def pretrain(self, data: str | Dataset, *, size: str = "small", debug: bool = False, **options: Any) -> Model:
         """Inspect data, create a model, train it, and return the model."""
 
         dataset = data if isinstance(data, Dataset) else Dataset.load(data)
         self.last_dataset = dataset
-        model = self.create(size=size, data=dataset, **{key: value for key, value in options.items() if key in {"embed_dim", "block_size", "num_blocks", "batch_size", "vocab_size"}})
+        model = self.create(size=size, data=dataset, **{key: value for key, value in options.items() if key in {"embed_dim", "block_size", "num_blocks", "batch_size", "vocab_size", "tokenizer"}})
         train_options = {key: value for key, value in options.items() if key in {"epochs", "batch_size", "learning_rate", "block_size"}}
-        self.train(model, dataset, **train_options)
+        
+        self.train(model, dataset, debug=debug, **train_options)
         return model
+
+    @staticmethod
+    def _coerce_tokenizer(tokenizer: Any) -> Any:
+        """Normalize Lab tokenizer options for the current native slice."""
+
+        if tokenizer is None:
+            return None
+        if hasattr(tokenizer, "get_vocab_size"):
+            return tokenizer
+        if isinstance(tokenizer, str):
+            name = tokenizer.lower().strip()
+            if name in {"word", "default", "auto"}:
+                return None
+            if name == "sentencepiece":
+                raise ValueError("Lab's current native path supports tokenizer='word'. Pass a built SentencePieceTokenizer object when sentencepiece support is needed.")
+        raise TypeError("tokenizer must be an ArcLM tokenizer object or one of: word, default, auto.")
+
+    @staticmethod
+    def _tokenizer_label(requested: Any, tokenizer: Any) -> str | None:
+        if requested is not None:
+            return str(requested)
+        if tokenizer is None:
+            return None
+        return type(tokenizer).__name__

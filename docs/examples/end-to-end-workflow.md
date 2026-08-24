@@ -4,13 +4,13 @@
 from pathlib import Path
 import tempfile
 
-from arclm import DataProcessor, Tokenizer, load_model, train_model
+from arclm import DataProcessor, Lab, Model, Runtime, Tokenizer
 
 with tempfile.TemporaryDirectory() as tmp:
     root = Path(tmp)
     raw = root / "records.jsonl"
     train = root / "train.txt"
-    model_path = root / "model.pth"
+    artifact = root / "model.arcmodel"
 
     raw.write_text(
         '{"text": "ArcLM loads data."}\n'
@@ -27,27 +27,15 @@ with tempfile.TemporaryDirectory() as tmp:
 
     tokenizer = Tokenizer(max_vocab=64)
     tokenizer.build(" ".join(row["text"] for row in dataset.samples))
-    dataset = dataset.tokenize(tokenizer)
+    tokenized = dataset.tokenize(tokenizer)
 
-    train.write_text((" ".join(row["text"] for row in dataset.samples) + " ") * 24, encoding="utf-8")
+    train.write_text((" ".join(row["text"] for row in tokenized.samples) + " ") * 24, encoding="utf-8")
 
-    train_model(
-        "pretrain",
-        str(train),
-        str(model_path),
-        tokenizer_type="word",
-        max_vocab=64,
-        embed_dim=16,
-        num_blocks=1,
-        block_size=8,
-        batch_size=2,
-        num_epochs=1,
-        validation_split=0.0,
-        training_log_interval=0,
-        device="cpu",
-    )
+    runtime = Runtime.auto(prefer="cpu")
+    lab = Lab(runtime=runtime)
+    model = lab.pretrain(train, size="tiny", epochs=1, learning_rate=1e-3)
+    model.save(artifact, overwrite=True)
 
-    loaded = load_model(model_path, device="cpu")
-    print(loaded.predict("ArcLM", max_new_tokens=4))
+    loaded = Model.load(artifact, runtime=runtime)
+    print(loaded.generate("ArcLM", max_new_tokens=4))
 ```
-

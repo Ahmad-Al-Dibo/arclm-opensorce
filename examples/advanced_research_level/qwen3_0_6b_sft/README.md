@@ -25,37 +25,37 @@ For Qwen3, use `transformers>=4.51`. The example does not require `bitsandbytes`
 ## Windows PowerShell
 
 ```powershell
-.\.venv\Scripts\python.exe examples/qwen3_0_6b_sft/test_base_model.py
-.\.venv\Scripts\python.exe examples/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
-.\.venv\Scripts\python.exe examples/qwen3_0_6b_sft/test_finetuned_model.py
-.\.venv\Scripts\python.exe examples/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
+.\.venv\Scripts\python.exe examples/advanced_research_level/qwen3_0_6b_sft/test_base_model.py
+.\.venv\Scripts\python.exe examples/advanced_research_level/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
+.\.venv\Scripts\python.exe examples/advanced_research_level/qwen3_0_6b_sft/test_finetuned_model.py
+.\.venv\Scripts\python.exe examples/advanced_research_level/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
 ```
 
 ## Cross-platform
 
 ```bash
-python examples/qwen3_0_6b_sft/test_base_model.py
-python examples/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
-python examples/qwen3_0_6b_sft/test_finetuned_model.py
-python examples/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
+python examples/advanced_research_level/qwen3_0_6b_sft/test_base_model.py
+python examples/advanced_research_level/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
+python examples/advanced_research_level/qwen3_0_6b_sft/test_finetuned_model.py
+python examples/advanced_research_level/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
 ```
 
 ## Base Model Test
 
 ```bash
-python examples/qwen3_0_6b_sft/test_base_model.py
+python examples/advanced_research_level/qwen3_0_6b_sft/test_base_model.py
 ```
 
 This loads `Qwen/Qwen3-0.6B`, applies the tokenizer chat template, tries `enable_thinking=False`, prints only generated text, and writes:
 
 ```text
-examples/qwen3_0_6b_sft/output/base_outputs.jsonl
+examples/advanced_research_level/qwen3_0_6b_sft/output/base_outputs.jsonl
 ```
 
 ## Fine-tuning
 
 ```bash
-python examples/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
+python examples/advanced_research_level/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py
 ```
 
 The script calls ArcLM's public API:
@@ -65,8 +65,8 @@ from arclm import train_sft
 
 result = train_sft(
     model="Qwen/Qwen3-0.6B",
-    dataset="examples/qwen3_0_6b_sft/data/sample_sft.jsonl",
-    output_dir="examples/qwen3_0_6b_sft/output/qwen3_0_6b_sft_lora",
+    dataset="examples/advanced_research_level/qwen3_0_6b_sft/data/sample_sft.jsonl",
+    output_dir="examples/advanced_research_level/qwen3_0_6b_sft/output/qwen3_0_6b_sft_lora",
     backend="huggingface",
     assistant_only_loss=True,
     use_lora=True,
@@ -83,25 +83,25 @@ result = train_sft(
 By default the script saves a PEFT LoRA adapter under:
 
 ```text
-examples/qwen3_0_6b_sft/output/qwen3_0_6b_sft_lora
+examples/advanced_research_level/qwen3_0_6b_sft/output/qwen3_0_6b_sft_lora
 ```
 
 ## Fine-tuned Model Test
 
 ```bash
-python examples/qwen3_0_6b_sft/test_finetuned_model.py
+python examples/advanced_research_level/qwen3_0_6b_sft/test_finetuned_model.py
 ```
 
 This loads the base model, attaches the LoRA adapter if `adapter_config.json` exists, generates answers for the same prompts, and writes:
 
 ```text
-examples/qwen3_0_6b_sft/output/finetuned_outputs.jsonl
+examples/advanced_research_level/qwen3_0_6b_sft/output/finetuned_outputs.jsonl
 ```
 
 ## Benchmark
 
 ```bash
-python examples/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
+python examples/advanced_research_level/qwen3_0_6b_sft/benchmark_base_vs_finetuned.py
 ```
 
 The benchmark compares keyword matches and answer length. It prints:
@@ -113,7 +113,7 @@ This is a small functional benchmark, not a full model evaluation.
 It also writes:
 
 ```text
-examples/qwen3_0_6b_sft/output/benchmark_results.json
+examples/advanced_research_level/qwen3_0_6b_sft/output/benchmark_results.json
 ```
 
 ## Generated Files
@@ -130,7 +130,7 @@ LoRA trains small low-rank adapter matrices while leaving most base model weight
 To disable LoRA and run full fine-tuning:
 
 ```bash
-python examples/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py --no-lora
+python examples/advanced_research_level/qwen3_0_6b_sft/train_qwen3_0_6b_sft.py --no-lora
 ```
 
 Only do this if you have enough GPU memory. Full fine-tuning saves a full Hugging Face model instead of an adapter.

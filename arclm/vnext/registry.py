@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable
 
+from ..core.architectures import ArcLMNativeArchitecture
+
 
 class SupportLevel:
     """Capability support labels."""
@@ -23,8 +25,10 @@ class CapabilitySet:
 
     inference: str = SupportLevel.UNSUPPORTED
     pretraining: str = SupportLevel.UNSUPPORTED
-    full_finetuning: str = SupportLevel.UNSUPPORTED
+    full_finetune: str = SupportLevel.UNSUPPORTED
     lora: str = SupportLevel.UNSUPPORTED
+    save: str = SupportLevel.UNSUPPORTED
+    load: str = SupportLevel.UNSUPPORTED
     qlora: str = SupportLevel.UNSUPPORTED
     cpu: str = SupportLevel.UNTESTED
     cuda: str = SupportLevel.UNTESTED
@@ -43,6 +47,14 @@ class ModelSpec:
     display_name: str
     tasks: frozenset[str]
     capabilities: CapabilitySet
+    architecture: Any | None = None
+    task: str = "causal-lm"
+    configuration: dict[str, Any] = field(default_factory=dict)
+    weight_mapping: dict[str, str] = field(default_factory=dict)
+    weight_mapper: Any | None = None
+    tokenizer_requirements: dict[str, Any] = field(default_factory=dict)
+    adapter_targets: tuple[str, ...] = ()
+    runtime_requirements: dict[str, Any] = field(default_factory=dict)
     config_keys: frozenset[str] = field(default_factory=frozenset)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -57,11 +69,27 @@ class ModelSpec:
         return {
             "architecture_id": self.architecture_id,
             "display_name": self.display_name,
+            "task": self.task,
             "tasks": sorted(self.tasks),
             "capabilities": self.capabilities.to_dict(),
+            "configuration": dict(self.configuration),
+            "weight_mapping": dict(self.weight_mapping),
+            "tokenizer_requirements": dict(self.tokenizer_requirements),
+            "adapter_targets": list(self.adapter_targets),
+            "runtime_requirements": dict(self.runtime_requirements),
             "config_keys": sorted(self.config_keys),
             "metadata": dict(self.metadata),
         }
+
+
+class IdentityWeightMapper:
+    """Native ArcLM tensor names are already ArcLM-owned."""
+
+    def map_name(self, external_name: str) -> str:
+        return external_name
+
+    def map_state_dict(self, state_dict: dict[str, Any]) -> dict[str, Any]:
+        return dict(state_dict)
 
 
 class ModelRegistry:
@@ -102,6 +130,7 @@ class ModelRegistry:
             "arclm-native": "arclm-native-causal-lm",
             "native": "arclm-native-causal-lm",
             "transformer": "arclm-native-causal-lm",
+            "arclm_native_causal_lm": "arclm-native-causal-lm",
         }
         return cls.get(aliases.get(str(key), str(key)))
 
@@ -129,13 +158,27 @@ ModelRegistry.register(
         tasks=frozenset({"causal-lm", "generation"}),
         capabilities=CapabilitySet(
             inference=SupportLevel.SUPPORTED,
-            pretraining=SupportLevel.PLANNED,
-            full_finetuning=SupportLevel.PLANNED,
-            lora=SupportLevel.PLANNED,
+            pretraining=SupportLevel.SUPPORTED,
+            full_finetune=SupportLevel.EXPERIMENTAL,
+            lora=SupportLevel.SUPPORTED,
+            save=SupportLevel.SUPPORTED,
+            load=SupportLevel.SUPPORTED,
             qlora=SupportLevel.UNSUPPORTED,
             cpu=SupportLevel.SUPPORTED,
             cuda=SupportLevel.UNTESTED,
         ),
+        architecture=ArcLMNativeArchitecture(),
+        task="causal-lm",
+        configuration={
+            "required": ["vocab_size"],
+            "defaults": {"embed_dim": 64, "block_size": 8, "num_blocks": 2, "dropout": 0.0},
+        },
+        weight_mapping={"type": "identity"},
+        weight_mapper=IdentityWeightMapper(),
+        tokenizer_requirements={"kind": "arclm-tokenizer", "required": True},
+        adapter_targets=("blocks.0.attn.query", "blocks.0.attn.value", "head"),
+        runtime_requirements={"backend": "torch", "devices": ["cpu", "cuda"]},
         config_keys=frozenset({"vocab_size", "embed_dim", "block_size", "num_blocks", "dropout"}),
+        metadata={"pretrained_family": "ArcLM native causal LM artifacts"},
     )
 )

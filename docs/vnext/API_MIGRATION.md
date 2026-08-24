@@ -41,5 +41,5 @@ that removal is ready now.
   promotion for `arclm.data/` and `arclm.model/`.
 
 Current bridge: expose `Lab`, `Dataset`, `Model`, `Trainer`, and `Runtime` from
-the root package while implementation lives under `arclm.vnext` and conflict
-modules remain compatibility shims.
+the root package. The high-level Trainer now uses `arclm.core.TrainingEngine`;
+the legacy positional Trainer constructor remains a compatibility shim.
