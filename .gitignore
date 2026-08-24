@@ -26,6 +26,12 @@ data/*
 *.pt
 *.ckpt
 *.safetensors
+*.in
+
+./train.py
+./usage.py
+./setup.py
+./PROJECT_MAP.md
 
 notebooks/
 adapter/
