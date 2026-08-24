@@ -32,6 +32,9 @@ data/*
 ./usage.py
 ./setup.py
 ./PROJECT_MAP.md
+.gitignore
+.gitattributes
+./project.toml
 
 notebooks/
 adapter/
