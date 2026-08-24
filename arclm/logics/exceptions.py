@@ -1,2 +1,0 @@
-class EvaluationException(Exception):
-    pass
