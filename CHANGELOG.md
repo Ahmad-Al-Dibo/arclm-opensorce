@@ -1,6 +1,22 @@
 # Changelog
 
-## 0.9.0.dev0
+## 1.0.0
+
+- Rewrote the README around ArcLM's new self-driving framework direction:
+  a connected route from raw data to validation, tokenization, model loading,
+  training or fine-tuning, evaluation, artifact saving, and reporting.
+- Clarified that ArcLM is positioned as its own framework, with PyTorch and
+  Hugging Face treated as dependencies or backends instead of the project
+  identity.
+- Updated package metadata for the ArcLM-first framework direction and promoted
+  the package version to `1.0.0`.
+- Shortened the public project pitch and aligned it with the current
+  workflow runner, typed configuration, checkpoint safety, diagnostics,
+  native artifact, and Hugging Face causal-LM surfaces.
+- Expanded the docs site with a Framework API page and a generated full public
+  API inventory covering exported functions, classes, and public methods.
+
+## 0.9.0
 
 - Added a central public API stability manifest and stable API snapshot tests.
 - Added schema-versioned typed ArcLM workflow configuration with strict parsing,

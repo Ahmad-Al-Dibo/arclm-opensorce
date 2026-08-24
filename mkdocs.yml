@@ -1,5 +1,5 @@
 site_name: ArcLM
-site_description: Data-first workflows for causal language models.
+site_description: ArcLM-first self-driving framework for causal language-model workflows.
 repo_url: https://github.com/ahmad-al-dibo/arclm
 exclude_docs: |
   versions/**
@@ -86,6 +86,8 @@ nav:
       - Complete End-to-End Workflow: examples/end-to-end-workflow.md
   - API Reference:
       - Overview: api-reference/index.md
+      - Framework API: api-reference/framework-api.md
+      - Full Public API: api-reference/full-public-api.md
       - Data API: api-reference/data-api.md
       - Tokenization API: api-reference/tokenization-api.md
       - Model API: api-reference/model-api.md

@@ -144,3 +144,54 @@ def test_public_trainer_keeps_legacy_constructor_usable():
     legacy = Trainer(config_model.model, optimizer, criterion, config_model.config)
 
     assert "train_losses" in legacy.inspect()
+
+
+def test_model_load_imports_legacy_pytorch_checkpoint(tmp_path):
+    tokenizer = Tokenizer(max_vocab=10)
+    tokenizer.build("hello world hello arc model")
+    runtime = Runtime.auto(prefer="cpu")
+    model = Model.create(
+        architecture="arclm-native",
+        tokenizer=tokenizer,
+        runtime=runtime,
+        embed_dim=8,
+        block_size=4,
+        num_blocks=1,
+    )
+    legacy_path = tmp_path / "legacy.arcmodel"
+    torch.save(
+        {
+            "model_state_dict": model.model.state_dict(),
+            "config": {
+                "embed_dim": 8,
+                "block_size": 4,
+                "num_blocks": 1,
+                "dropout": 0.0,
+                "tokenizer_type": "word",
+            },
+            "vocab_size": tokenizer.get_vocab_size(),
+            "vocab": tokenizer.vocab,
+            "stoi": tokenizer.stoi,
+            "itos": tokenizer.itos,
+        },
+        legacy_path,
+    )
+
+    loaded = Model.load(legacy_path, runtime=runtime)
+
+    assert loaded.inspect()["architecture_id"] == "arclm-native-causal-lm"
+    assert loaded.base_model_id == "legacy:legacy.arcmodel"
+    assert loaded.generate("hello", max_new_tokens=1)
+
+
+def test_trainer_preserves_model_architecture_block_size(tmp_path):
+    dataset = Dataset.load(_tiny_dataset(tmp_path))
+    model = _tiny_model_for_dataset(dataset)
+    original_block_size = model.config.block_size
+
+    Trainer(model=model, dataset=dataset, epochs=1, batch_size=2, learning_rate=1e-2, block_size=2).train()
+    artifact = model.save(tmp_path / "short-window.arcmodel", overwrite=True)
+    reloaded = Model.load(artifact.path, runtime=Runtime.auto(prefer="cpu"))
+
+    assert model.config.block_size == original_block_size
+    assert reloaded.config.block_size == original_block_size
