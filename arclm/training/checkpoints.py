@@ -71,16 +71,16 @@ class CheckpointManager:
         import torch
 
         self.root.mkdir(parents=True, exist_ok=True)
-        path = self.root / f"checkpoint-{step:06d}.arccheckpoint"
+        path = self.root / f"checkpoint-{step:06d}.arcckpt"
         if path.exists():
             if not overwrite:
                 raise FileExistsError(f"Checkpoint already exists: {path}")
             shutil.rmtree(path)
         path.mkdir()
         metadata = CheckpointMetadata(
-            format="arccheckpoint",
+            format="arcckpt",
             format_version="1",
-            checkpoint_id=f"arccheckpoint-{uuid.uuid4()}",
+            checkpoint_id=f"arcckpt-{uuid.uuid4()}",
             created_at=datetime.now(timezone.utc).isoformat(),
             created_with=f"arclm {__version__}",
             epoch=epoch,

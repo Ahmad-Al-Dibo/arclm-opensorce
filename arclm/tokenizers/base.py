@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import tempfile
 from collections import Counter
 from pathlib import Path
 from typing import Any, Protocol
+
+from .templates import ChatFormatter, ChatTemplate
 
 
 class TokenizerEngine(Protocol):
@@ -29,6 +32,17 @@ class TokenizerEngine(Protocol):
 class Tokenizer:
     """Single public tokenizer API for ArcLM workflows."""
 
+    DEFAULT_SPECIAL_TOKENS = {
+        "bos": "<s>",
+        "eos": "</s>",
+        "pad": "<pad>",
+        "unk": "<UNK>",
+        "user": "<|user|>",
+        "assistant": "<|assistant|>",
+        "system": "<|system|>",
+        "tool": "<|tool|>",
+        "separator": "<|sep|>",
+    }
     _engines: dict[str, type[TokenizerEngine]] = {}
     _aliases = {
         "default": "word",
@@ -41,13 +55,31 @@ class Tokenizer:
         "unigram": "sentence",
     }
 
-    def __init__(self, strategy: str = "word", **options: Any):
+    def __init__(
+        self,
+        strategy: str = "word",
+        *,
+        special_tokens: dict[str, str] | None = None,
+        chat_template: ChatTemplate | ChatFormatter | dict[str, Any] | str | None = None,
+        add_default_special_tokens: bool = True,
+        **options: Any,
+    ):
         normalized = self.normalize_strategy(strategy)
         engine_cls = self._engines.get(normalized)
         if engine_cls is None:
             supported = "', '".join(sorted(self._engines))
             raise ValueError(f"Unknown tokenizer strategy: {strategy!r}. Supported: '{supported}'.")
         self.strategy = normalized
+        self.special_tokens = self._resolve_special_tokens(special_tokens, add_default=add_default_special_tokens)
+        self.chat_template = self._resolve_chat_template(chat_template)
+        user_defined = list(options.pop("user_defined_symbols", []) or [])
+        for token in self.special_tokens.values():
+            if token and token not in user_defined and token != self.special_tokens.get("unk"):
+                user_defined.append(token)
+        if user_defined:
+            options["user_defined_symbols"] = user_defined
+        if "unknown_token" not in options and self.special_tokens.get("unk"):
+            options["unknown_token"] = self.special_tokens["unk"]
         self.engine = engine_cls(**options)
 
     @classmethod
@@ -75,12 +107,20 @@ class Tokenizer:
         return self
 
     def tokenize(self, text: str) -> list[str]:
-        return self.engine.tokenize(text)
+        return self._tokenize_with_specials(str(text))
 
-    def encode(self, text: str | list[str]) -> list[int]:
+    def encode(self, text: str | list[str], *, add_special_tokens: bool = False) -> list[int]:
         if isinstance(text, list):
             text = " ".join(str(token) for token in text if token)
-        return self.engine.encode(str(text))
+        value = str(text)
+        if add_special_tokens:
+            value = self._with_boundary_tokens(value)
+        if hasattr(self.engine, "stoi"):
+            if not self.is_built:
+                raise ValueError("Tokenizer is not built. Call build() first.")
+            unknown = self.get_unknown_index()
+            return [int(self.engine.stoi.get(token, unknown)) for token in self.tokenize(value)]  # type: ignore[attr-defined]
+        return self.engine.encode(value)
 
     def decode(self, token_ids: list[int]) -> str:
         return self.engine.decode([int(token_id) for token_id in token_ids])
@@ -101,12 +141,36 @@ class Tokenizer:
     def get_unknown_index(self) -> int:
         return int(getattr(self.engine, "unknown_index", 0))
 
+    def special_token(self, name: str) -> str:
+        try:
+            return self.special_tokens[str(name).lower().strip()]
+        except KeyError as exc:
+            raise KeyError(f"Unknown special token: {name!r}.") from exc
+
+    def special_token_id(self, name: str) -> int:
+        token = self.special_token(name)
+        if not self.is_built:
+            raise ValueError("Tokenizer is not built. Call build() first.")
+        if hasattr(self.engine, "stoi"):
+            return int(self.engine.stoi[token])  # type: ignore[attr-defined]
+        encoded = self.engine.encode(token)
+        if len(encoded) != 1:
+            raise ValueError(f"Special token {name!r} does not map to exactly one token id.")
+        return int(encoded[0])
+
+    def format_chat(self, messages: list[dict[str, Any]], *, add_generation_prompt: bool = False, template: ChatTemplate | ChatFormatter | None = None) -> str:
+        active = template or self.chat_template or ChatTemplate.default()
+        return active.format(messages, add_generation_prompt=add_generation_prompt)
+
     def to_json(self) -> dict[str, Any]:
         payload = self.engine.to_dict()
         payload["format"] = "arclm-tokenizer"
         payload["schema_version"] = "1"
         payload["strategy"] = self.strategy
         payload["vocab_size"] = self.vocab_size
+        payload["special_tokens"] = dict(self.special_tokens)
+        if isinstance(self.chat_template, ChatTemplate):
+            payload["chat_template"] = self.chat_template.to_dict()
         return payload
 
     def save(self, path: str | Path) -> Path:
@@ -121,11 +185,17 @@ class Tokenizer:
     @classmethod
     def from_json(cls, data: dict[str, Any]) -> "Tokenizer":
         strategy = cls.normalize_strategy(data.get("strategy") or data.get("tokenizer_type") or "word")
+        if strategy == "transformers-compat":
+            from ..compat.transformers import TransformersTokenizerAdapter
+
+            return TransformersTokenizerAdapter.from_json(data)  # type: ignore[return-value]
         engine_cls = cls._engines.get(strategy)
         if engine_cls is None:
             raise ValueError(f"Unsupported tokenizer strategy in artifact: {strategy!r}.")
         tokenizer = cls.__new__(cls)
         tokenizer.strategy = strategy
+        tokenizer.special_tokens = cls._resolve_special_tokens(data.get("special_tokens"), add_default=True)
+        tokenizer.chat_template = cls._resolve_chat_template(data.get("chat_template"))
         tokenizer.engine = engine_cls.from_dict(data)  # type: ignore[attr-defined]
         return tokenizer
 
@@ -136,6 +206,48 @@ class Tokenizer:
         print(f"Vocab size: {self.vocab_size}")
         print(f"Total tokens: {sum(self.engine.token_counts.values())}")
         print(f"Is built: {self.is_built}")
+
+    @classmethod
+    def _resolve_special_tokens(cls, special_tokens: dict[str, str] | None, *, add_default: bool) -> dict[str, str]:
+        tokens = dict(cls.DEFAULT_SPECIAL_TOKENS if add_default else {})
+        for name, token in dict(special_tokens or {}).items():
+            if token is not None:
+                tokens[str(name).lower().strip()] = str(token)
+        return tokens
+
+    @staticmethod
+    def _resolve_chat_template(chat_template: ChatTemplate | ChatFormatter | dict[str, Any] | str | None) -> ChatTemplate | ChatFormatter:
+        if chat_template is None:
+            return ChatTemplate.default()
+        if isinstance(chat_template, str):
+            return ChatTemplate.get(chat_template)
+        if isinstance(chat_template, dict):
+            return ChatTemplate.from_dict(chat_template)
+        return chat_template
+
+    def _tokenize_with_specials(self, text: str) -> list[str]:
+        special_values = sorted({token for token in self.special_tokens.values() if token}, key=len, reverse=True)
+        if not special_values:
+            return self.engine.tokenize(text)
+        pattern = "(" + "|".join(re.escape(token) for token in special_values) + ")"
+        tokens: list[str] = []
+        for part in re.split(pattern, text):
+            if not part:
+                continue
+            if part in self.special_tokens.values():
+                tokens.append(part)
+            else:
+                tokens.extend(self.engine.tokenize(part))
+        return tokens
+
+    def _with_boundary_tokens(self, text: str) -> str:
+        parts = []
+        if self.special_tokens.get("bos"):
+            parts.append(self.special_tokens["bos"])
+        parts.append(str(text))
+        if self.special_tokens.get("eos"):
+            parts.append(self.special_tokens["eos"])
+        return " ".join(part for part in parts if part)
 
 
 class WordTokenizerEngine:
@@ -363,4 +475,4 @@ Tokenizer.register_engine("word", WordTokenizerEngine, aliases=("default", "word
 Tokenizer.register_engine("character", CharacterTokenizerEngine, aliases=("char", "chars"))
 Tokenizer.register_engine("sentence", SentencePieceTokenizerEngine, aliases=("sentencepiece", "sp", "bpe", "unigram"))
 
-__all__ = ["Tokenizer", "TokenizerEngine"]
+__all__ = ["ChatTemplate", "Tokenizer", "TokenizerEngine"]

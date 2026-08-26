@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
+from ..exceptions import RuntimePlanningError
+
 
 @dataclass(frozen=True)
 class DeviceInfo:
@@ -14,6 +16,7 @@ class DeviceInfo:
     name: str
     index: int | None = None
     total_memory_bytes: int | None = None
+    available_memory_bytes: int | None = None
     capabilities: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -31,6 +34,7 @@ class Runtime:
     precision: str
     available_devices: tuple[DeviceInfo, ...]
     warnings: tuple[str, ...] = ()
+    backend_capabilities: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def auto(cls, *, prefer: str = "auto", precision: str = "auto") -> "Runtime":
@@ -39,28 +43,53 @@ class Runtime:
         try:
             import torch
         except Exception as exc:  # pragma: no cover - exercised only without torch
-            raise RuntimeError("ArcLM Runtime.auto() requires PyTorch for the torch backend.") from exc
+            raise RuntimePlanningError(
+                "Runtime discovery failed because the torch backend is unavailable.",
+                subsystem="runtime",
+                action="Install PyTorch or request a future non-torch backend when available.",
+                cause=repr(exc),
+            ) from exc
 
         requested = str(prefer or "auto").lower().strip()
-        devices = [DeviceInfo(type="cpu", name="CPU")]
+        devices = [DeviceInfo(type="cpu", name="CPU", capabilities={"precision": ["float32"]})]
         warnings: list[str] = []
 
-        cuda_available = bool(torch.cuda.is_available())
+        cuda_available = bool(getattr(torch, "cuda", None) is not None and torch.cuda.is_available())
         if cuda_available:
             for index in range(int(torch.cuda.device_count())):
                 props = torch.cuda.get_device_properties(index)
+                free_memory = None
+                try:
+                    free_memory = int(torch.cuda.mem_get_info(index)[0])
+                except Exception:
+                    free_memory = None
                 devices.append(
                     DeviceInfo(
                         type="cuda",
                         name=str(torch.cuda.get_device_name(index)),
                         index=index,
                         total_memory_bytes=int(getattr(props, "total_memory", 0)) or None,
+                        available_memory_bytes=free_memory,
                         capabilities={
                             "compute_capability": tuple(torch.cuda.get_device_capability(index)),
                             "bf16": bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)()),
+                            "precision": ["float32", "float16", "bfloat16"],
                         },
                     )
                 )
+        mps_available = bool(
+            getattr(torch, "backends", None) is not None
+            and getattr(torch.backends, "mps", None) is not None
+            and torch.backends.mps.is_available()
+        )
+        if mps_available:
+            devices.append(
+                DeviceInfo(
+                    type="mps",
+                    name="Apple Metal Performance Shaders",
+                    capabilities={"precision": ["float32", "float16"]},
+                )
+            )
 
         selected = devices[0]
         if requested == "auto":
@@ -72,10 +101,20 @@ class Runtime:
                 warnings.append("CUDA was requested but is not available; using CPU.")
             else:
                 selected = devices[1]
+        elif requested == "mps":
+            matches = [device for device in devices if device.type == "mps"]
+            if not matches:
+                warnings.append("MPS was requested but is not available; using CPU.")
+            else:
+                selected = matches[0]
         elif requested.startswith("cuda:"):
             selected = cls._select_cuda_device(requested, devices, warnings)
         else:
-            raise ValueError("prefer must be one of: auto, cpu, cuda, cuda:<index>.")
+            raise RuntimePlanningError(
+                f"Unsupported runtime preference: {prefer!r}.",
+                subsystem="runtime",
+                action="Use one of: auto, cpu, cuda, cuda:<index>, mps.",
+            )
 
         resolved_precision = cls._resolve_precision(precision, selected)
         return cls(
@@ -84,6 +123,12 @@ class Runtime:
             precision=resolved_precision,
             available_devices=tuple(devices),
             warnings=tuple(warnings),
+            backend_capabilities={
+                "name": "torch",
+                "devices": sorted({device.type for device in devices}),
+                "future_backends": ["jax", "mlx"],
+                "distributed": "planned",
+            },
         )
 
     @staticmethod
@@ -117,6 +162,8 @@ class Runtime:
             raise ValueError("precision must be one of: auto, float32, fp32, float16, fp16, bfloat16, bf16.")
         if device.type == "cpu" and requested in {"float16", "bfloat16"}:
             return "float32"
+        if device.type == "mps" and requested == "bfloat16":
+            return "float32"
         return requested
 
     @property
@@ -126,6 +173,40 @@ class Runtime:
         if self.device.type == "cuda":
             return f"cuda:{self.device.index or 0}"
         return self.device.type
+
+    def memory_report(self) -> dict[str, Any]:
+        """Return memory information for selected and available devices."""
+
+        return {
+            "selected": self.device.to_dict(),
+            "available_devices": [device.to_dict() for device in self.available_devices],
+        }
+
+    def compute_plan(self, *, parameters: int = 0, trainable_parameters: int | None = None, activation_bytes: int = 0) -> dict[str, Any]:
+        """Return a rough compute and memory plan for a workload."""
+
+        dtype_bytes = {"float32": 4, "float16": 2, "bfloat16": 2}.get(self.precision, 4)
+        trainable = int(parameters if trainable_parameters is None else trainable_parameters)
+        parameter_memory = int(parameters) * dtype_bytes
+        gradient_memory = trainable * dtype_bytes
+        optimizer_memory = trainable * dtype_bytes * 2
+        total = parameter_memory + gradient_memory + optimizer_memory + int(activation_bytes)
+        available = self.device.available_memory_bytes or self.device.total_memory_bytes
+        fits = None if available is None else total <= int(available)
+        return {
+            "backend": self.backend,
+            "device": self.device_name,
+            "precision": self.precision,
+            "parameters": int(parameters),
+            "trainable_parameters": trainable,
+            "estimated_parameter_memory_bytes": parameter_memory,
+            "estimated_gradient_memory_bytes": gradient_memory,
+            "estimated_optimizer_memory_bytes": optimizer_memory,
+            "estimated_activation_memory_bytes": int(activation_bytes),
+            "estimated_total_memory_bytes": total,
+            "available_memory_bytes": available,
+            "fits_selected_device": fits,
+        }
 
     def torch_device(self):
         """Return a `torch.device` for low-level interoperability."""
@@ -143,4 +224,6 @@ class Runtime:
             "precision": self.precision,
             "available_devices": [device.to_dict() for device in self.available_devices],
             "warnings": list(self.warnings),
+            "memory": self.memory_report(),
+            "backend_capabilities": dict(self.backend_capabilities),
         }

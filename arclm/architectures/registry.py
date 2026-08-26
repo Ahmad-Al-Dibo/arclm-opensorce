@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .base import Architecture
+from .compatibility import GemmaTransformersCausalLM
 from .native import ArcLMNativeCausalLM
 
 
@@ -65,6 +66,11 @@ class ArchitectureRegistry:
 
         return self.get(architecture_id).capabilities.to_dict()
 
+    def external_candidates(self) -> list[Architecture]:
+        """Return architectures that can resolve external model references."""
+
+        return [architecture for architecture in self._architectures.values() if hasattr(architecture, "can_load_source")]
+
     @staticmethod
     def _normalize(value: str) -> str:
         return str(value).lower().strip().replace("_", "-")
@@ -74,6 +80,10 @@ architectures = ArchitectureRegistry()
 architectures.register(
     ArcLMNativeCausalLM,
     aliases=("arclm", "arclm-native", "native", "transformer", "arclm_native_causal_lm"),
+)
+architectures.register(
+    GemmaTransformersCausalLM,
+    aliases=("gemma", "hf-gemma", "transformers-gemma", "gemma_transformers_causal_lm"),
 )
 
 __all__ = ["ArchitectureRegistry", "architectures"]

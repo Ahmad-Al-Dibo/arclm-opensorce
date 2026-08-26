@@ -68,6 +68,24 @@ class Trainer:
 
         return {"plan": self.plan.to_dict(), "history": dict(self.history)}
 
+    def memory_plan(self) -> dict[str, Any]:
+        """Report model/runtime/fine-tuning memory planning before training."""
+
+        method = self.fine_tuning.normalized_method()
+        if method == "adapter":
+            method = self.fine_tuning.adapter_type
+        report = self.model.memory_plan(fine_tuning=method)
+        report["training"] = {
+            "epochs": self.config.epochs,
+            "batch_size": self.config.batch_size,
+            "block_size": self.config.block_size,
+            "steps_per_epoch": self.config.steps_per_epoch,
+            "gradient_accumulation_steps": self.config.gradient_accumulation_steps,
+            "learning_rate": self.config.learning_rate,
+        }
+        report["fine_tuning"] = self.fine_tuning.to_dict()
+        return report
+
     def train(self, *args: Any, mode: str | None = None, debug: bool = False, **kwargs: Any) -> dict[str, Any]:
         """Train or fine-tune using ArcLM's training engine."""
 
@@ -126,6 +144,14 @@ class Trainer:
 
         self.history = result.to_history()
         return self.history
+
+    def fine_tune(self, *args: Any, method: str | None = None, debug: bool = False, **kwargs: Any) -> dict[str, Any]:
+        """Fine-tune through the same ArcLM training engine."""
+
+        mode = method or self.fine_tuning.normalized_method()
+        if mode in {"lora", "peft"}:
+            mode = "adapter"
+        return self.train(*args, mode=mode, debug=debug, **kwargs)
 
     def _prepare_validation_loader(self, tokenizer: Any) -> Any | None:
         if self.validation_dataset is None:

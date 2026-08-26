@@ -6,6 +6,18 @@ from __future__ import annotations
 class ArcLMError(Exception):
     """Base class for ArcLM-specific errors."""
 
+    def __init__(self, message: str, *, subsystem: str = "core", action: str | None = None, cause: str | None = None):
+        self.message = str(message)
+        self.subsystem = str(subsystem)
+        self.action = action
+        self.cause = cause
+        parts = [f"[ArcLM:{self.subsystem}] {self.message}"]
+        if self.cause:
+            parts.append(f"Cause: {self.cause}")
+        if self.action:
+            parts.append(f"Action: {self.action}")
+        super().__init__(" ".join(parts))
+
 
 class ConfigurationError(ArcLMError, ValueError):
     """Raised when configuration values are invalid."""
@@ -55,14 +67,23 @@ class ArtifactIntegrityError(ArtifactError):
     """Raised when an ArcLM native artifact fails integrity validation."""
 
 
+class ArtifactVersionError(ArtifactError):
+    """Raised when an artifact version cannot be read safely."""
+
+
 class OptionalDependencyError(ArcLMError, ImportError):
     """Raised when an optional dependency is required but missing."""
+
+
+class RuntimePlanningError(ArcLMError, RuntimeError):
+    """Raised when runtime discovery or planning fails."""
 
 
 __all__ = [
     "ArcLMError",
     "ArtifactError",
     "ArtifactIntegrityError",
+    "ArtifactVersionError",
     "CheckpointError",
     "ConfigurationError",
     "DatasetError",
@@ -72,6 +93,7 @@ __all__ = [
     "ModelError",
     "ModelLoadError",
     "OptionalDependencyError",
+    "RuntimePlanningError",
     "TrainingError",
     "UnsupportedModelError",
 ]

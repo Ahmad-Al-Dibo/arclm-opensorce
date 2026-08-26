@@ -68,6 +68,25 @@ class Lab:
         self.decisions.append({"stage": "dataset.inspect", "report": report.to_dict()})
         return report
 
+    def prepare(self, data: Dataset | None = None, **options: Any) -> Any:
+        """Prepare the current or provided dataset with beginner-friendly defaults."""
+
+        dataset = data or self.last_dataset
+        if dataset is None:
+            raise TypeError("Lab.prepare() requires a dataset or a previous Lab.dataset() call.")
+        prepared = dataset.prepare(**options)
+        self.last_dataset = dataset
+        self.decisions.append(
+            {
+                "stage": "student.data.prepare",
+                "records": len(dataset.records),
+                "tokens": len(prepared.encoded),
+                "block_size": prepared.block_size,
+                "batch_size": prepared.batch_size,
+            }
+        )
+        return prepared
+
     def create(self, *, task: str = "causal-lm", size: str = "small", data: Dataset | None = None, **overrides: Any) -> Model:
         """Create a small native model with inspectable defaults."""
 

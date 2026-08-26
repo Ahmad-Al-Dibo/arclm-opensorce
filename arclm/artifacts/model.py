@@ -17,7 +17,7 @@ from typing import Any
 from safetensors.torch import load, load_file, save_file
 
 from .._version import __version__
-from ..exceptions import ArtifactIntegrityError
+from ..exceptions import ArtifactError, ArtifactIntegrityError, ArtifactVersionError
 
 
 @dataclass(frozen=True)
@@ -63,12 +63,16 @@ class ArcModelManifest:
 class ArcModelArtifact:
     """Reader/writer for `.arcmodel` directory artifacts."""
 
+    FORMAT_VERSION = "1"
+    SCHEMA_VERSION = "1"
     MANIFEST = "manifest.json"
     CONFIG = "config.json"
-    TOKENIZER = "tokenizer.json"
+    TOKENIZER = "tokenizer/tokenizer.json"
+    LEGACY_TOKENIZER = "tokenizer.json"
     WEIGHTS = "weights/model.safetensors"
     WEIGHTS_DIR = "weights"
-    SHARD_INDEX = "weights/index.json"
+    SHARD_INDEX = "index.json"
+    LEGACY_SHARD_INDEX = "weights/index.json"
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -105,7 +109,11 @@ class ArcModelArtifact:
         artifact = cls(artifact_path)
         if artifact_path.exists():
             if not overwrite:
-                raise FileExistsError(f"Artifact already exists: {artifact_path}")
+                raise ArtifactError(
+                    f"Artifact already exists: {artifact_path}",
+                    subsystem="artifacts",
+                    action="Pass overwrite=True or choose a different output path.",
+                )
             if artifact_path.is_dir():
                 shutil.rmtree(artifact_path)
             else:
@@ -167,6 +175,7 @@ class ArcModelArtifact:
         config_path = root / cls.CONFIG
         tokenizer_path = root / cls.TOKENIZER
 
+        tokenizer_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps(config, indent=2, sort_keys=True, default=str), encoding="utf-8")
         tokenizer_payload = tokenizer.to_json() if hasattr(tokenizer, "to_json") else {}
         tokenizer_path.write_text(json.dumps(tokenizer_payload, indent=2, sort_keys=True, default=str), encoding="utf-8")
@@ -198,8 +207,8 @@ class ArcModelArtifact:
         manifest = ArcModelManifest(
             artifact_id=f"arcmodel-{uuid.uuid4()}",
             format="arcmodel",
-            format_version="1",
-            schema_version="1",
+            format_version=cls.FORMAT_VERSION,
+            schema_version=cls.SCHEMA_VERSION,
             minimum_reader_version=__version__,
             architecture_id=architecture_id,
             created_at=datetime.now(timezone.utc).isoformat(),
@@ -244,9 +253,13 @@ class ArcModelArtifact:
 
         data = self._read_json(self.MANIFEST)
         if data is None:
-            manifest_path = self.path / self.MANIFEST
-            raise FileNotFoundError(f"Artifact manifest not found: {manifest_path}")
+            raise ArtifactError(
+                f"Artifact manifest not found: {self._display_path(self.MANIFEST)}",
+                subsystem="artifacts",
+                action="Check that the path points to a valid .arcmodel file or directory.",
+            )
         manifest = ArcModelManifest.from_dict(data)
+        self._validate_versions(manifest)
         self._validate_hashes(manifest)
         return manifest
 
@@ -255,15 +268,23 @@ class ArcModelArtifact:
 
         data = self._read_json(self.CONFIG)
         if data is None:
-            raise FileNotFoundError(f"Artifact config not found: {self.CONFIG}")
+            raise ArtifactError(
+                f"Artifact config not found: {self.CONFIG}",
+                subsystem="artifacts",
+                action="Re-save the model artifact or restore the missing config file.",
+            )
         return data
 
     def read_tokenizer(self) -> dict[str, Any]:
         """Read tokenizer payload."""
 
-        data = self._read_json(self.TOKENIZER)
+        data = self._read_json(self.TOKENIZER) or self._read_json(self.LEGACY_TOKENIZER)
         if data is None:
-            raise FileNotFoundError(f"Artifact tokenizer not found: {self.TOKENIZER}")
+            raise ArtifactError(
+                f"Artifact tokenizer not found: {self.TOKENIZER}",
+                subsystem="artifacts",
+                action="Re-save the model artifact or restore tokenizer/tokenizer.json.",
+            )
         return data
 
     def read_state_dict(self, map_location: Any = "cpu") -> Any:
@@ -273,7 +294,11 @@ class ArcModelArtifact:
         if manifest.layout == "sharded":
             index = self._read_json(manifest.weights_file)
             if not index:
-                raise FileNotFoundError(f"Artifact shard index not found: {manifest.weights_file}")
+                raise ArtifactError(
+                    f"Artifact shard index not found: {manifest.weights_file}",
+                    subsystem="artifacts",
+                    action="Restore index.json or re-save the artifact with layout='sharded'.",
+                )
             self._validate_index(index, manifest)
             state: dict[str, Any] = {}
             for shard in index.get("shards", []):
@@ -284,19 +309,74 @@ class ArcModelArtifact:
         self._validate_state_dict(state, manifest)
         return state
 
+    def iter_state_dict(self, map_location: Any = "cpu"):
+        """Yield state-dict chunks by shard for lower-memory loading workflows."""
+
+        manifest = self.manifest()
+        if manifest.layout != "sharded":
+            yield self.read_state_dict(map_location=map_location)
+            return
+        index = self._read_json(manifest.weights_file)
+        if not index:
+            raise ArtifactError(
+                f"Artifact shard index not found: {manifest.weights_file}",
+                subsystem="artifacts",
+                action="Restore index.json or re-save the artifact with layout='sharded'.",
+            )
+        self._validate_index(index, manifest)
+        for shard in index.get("shards", []):
+            relative = f"{self.WEIGHTS_DIR}/{shard['file']}"
+            state = self._load_safetensors_member(relative, map_location=map_location)
+            self._validate_partial_state_dict(state, manifest)
+            yield state
+
+    @classmethod
+    def _validate_versions(cls, manifest: ArcModelManifest) -> None:
+        if manifest.format != "arcmodel":
+            raise ArtifactVersionError(
+                f"Unsupported artifact format: {manifest.format!r}.",
+                subsystem="artifacts",
+                action="Use an ArcLM .arcmodel artifact.",
+            )
+        if str(manifest.format_version) != cls.FORMAT_VERSION:
+            raise ArtifactVersionError(
+                f"Unsupported artifact format_version: {manifest.format_version!r}.",
+                subsystem="artifacts",
+                action="Migrate the artifact with a compatible ArcLM version before loading.",
+            )
+        if str(manifest.schema_version) != cls.SCHEMA_VERSION:
+            raise ArtifactVersionError(
+                f"Unsupported artifact schema_version: {manifest.schema_version!r}.",
+                subsystem="artifacts",
+                action="Migrate or re-save the artifact with the current ArcLM schema.",
+            )
+
     def _validate_hashes(self, manifest: ArcModelManifest) -> None:
         if manifest.layout == "sharded":
             weights_hash = self._combined_hash_members(manifest.weight_files)
         else:
             weights_hash = self._sha256_member(manifest.weights_file)
-        tokenizer_hash = self._sha256_member(self.TOKENIZER)
+        tokenizer_path = self.TOKENIZER if self._member_exists(self.TOKENIZER) else self.LEGACY_TOKENIZER
+        tokenizer_hash = self._sha256_member(tokenizer_path)
         if weights_hash != manifest.weights_hash:
-            raise ArtifactIntegrityError("Artifact weights hash does not match manifest.")
+            raise ArtifactIntegrityError(
+                "Artifact weights hash does not match manifest.",
+                subsystem="artifacts",
+                action="Verify the artifact was not modified or re-create it from the source model.",
+            )
         if tokenizer_hash != manifest.tokenizer_hash:
-            raise ArtifactIntegrityError("Artifact tokenizer hash does not match manifest.")
+            raise ArtifactIntegrityError(
+                "Artifact tokenizer hash does not match manifest.",
+                subsystem="artifacts",
+                action="Verify tokenizer files were not modified or re-save the artifact.",
+            )
         if manifest.layout == "sharded" and manifest.tensor_index_hash:
             if self._sha256_member(manifest.weights_file) != manifest.tensor_index_hash:
-                raise ArtifactIntegrityError("Artifact shard index hash does not match manifest.")
+                raise ArtifactIntegrityError(
+                    "Artifact shard index hash does not match manifest.",
+                    subsystem="artifacts",
+                    action="Restore the original shard index or re-save the sharded artifact.",
+                )
 
     def inspect(self) -> dict[str, Any]:
         """Return artifact metadata without exposing raw tensors."""
@@ -333,6 +413,12 @@ class ArcModelArtifact:
         if not path.exists():
             return None
         return json.loads(path.read_text(encoding="utf-8"))
+
+    def _member_exists(self, relative_path: str) -> bool:
+        if self.path.is_file():
+            with zipfile.ZipFile(self.path) as archive:
+                return relative_path in set(archive.namelist())
+        return (self.path / relative_path).exists()
 
     def _open_binary(self, relative_path: str):
         if self.path.is_file():
@@ -450,23 +536,59 @@ class ArcModelArtifact:
     def _validate_state_dict(self, state: dict[str, Any], manifest: ArcModelManifest) -> None:
         expected = manifest.tensor_metadata or {}
         if expected and set(state) != set(expected):
-            raise ArtifactIntegrityError("Artifact tensor names do not match manifest.")
+            raise ArtifactIntegrityError(
+                "Artifact tensor names do not match manifest.",
+                subsystem="artifacts",
+                action="Recreate the artifact from the original model weights.",
+            )
         for name, meta in expected.items():
             tensor = state[name]
             if list(tensor.shape) != list(meta.get("shape", [])):
-                raise ArtifactIntegrityError(f"Artifact tensor shape mismatch for {name}.")
+                raise ArtifactIntegrityError(
+                    f"Artifact tensor shape mismatch for {name}.",
+                    subsystem="artifacts",
+                    action="Recreate the artifact; the stored tensor does not match manifest metadata.",
+                )
+
+    def _validate_partial_state_dict(self, state: dict[str, Any], manifest: ArcModelManifest) -> None:
+        expected = manifest.tensor_metadata or {}
+        for name, tensor in state.items():
+            if name not in expected:
+                raise ArtifactIntegrityError(
+                    f"Unexpected tensor in shard: {name}.",
+                    subsystem="artifacts",
+                    action="Recreate the artifact from the original model weights.",
+                )
+            if list(tensor.shape) != list(expected[name].get("shape", [])):
+                raise ArtifactIntegrityError(
+                    f"Artifact tensor shape mismatch for {name}.",
+                    subsystem="artifacts",
+                    action="Recreate the artifact; the shard tensor does not match manifest metadata.",
+                )
 
     def _validate_index(self, index: dict[str, Any], manifest: ArcModelManifest) -> None:
         if index.get("format") != "arcweights-index" or str(index.get("schema_version")) != "1":
-            raise ArtifactIntegrityError("Artifact shard index format is unsupported.")
+            raise ArtifactIntegrityError(
+                "Artifact shard index format is unsupported.",
+                subsystem="artifacts",
+                action="Re-save the artifact with the current ArcLM sharded format.",
+            )
         weight_map = index.get("weight_map") or {}
         expected_names = set(manifest.tensor_metadata)
         if expected_names and set(weight_map) != expected_names:
-            raise ArtifactIntegrityError("Artifact shard index tensor names do not match manifest.")
+            raise ArtifactIntegrityError(
+                "Artifact shard index tensor names do not match manifest.",
+                subsystem="artifacts",
+                action="Recreate the sharded artifact; index.json is inconsistent with manifest.json.",
+            )
         for shard in index.get("shards", []):
             relative = f"{self.WEIGHTS_DIR}/{shard['file']}"
             if self._sha256_member(relative) != shard.get("hash"):
-                raise ArtifactIntegrityError(f"Artifact shard hash does not match index for {shard['file']}.")
+                raise ArtifactIntegrityError(
+                    f"Artifact shard hash does not match index for {shard['file']}.",
+                    subsystem="artifacts",
+                    action="Restore the original shard file or re-save the artifact.",
+                )
 
     @staticmethod
     def _sha256(path: Path) -> str:
@@ -493,8 +615,15 @@ class ArcModelArtifact:
         if normalized == "auto":
             return "single" if Path(path).suffix == ".arcmodel" else "directory"
         if normalized not in {"single", "directory", "sharded"}:
-            raise ValueError("layout must be one of: auto, single, directory, sharded.")
+            raise ArtifactError(
+                f"Unsupported artifact layout: {layout!r}.",
+                subsystem="artifacts",
+                action="Use one of: auto, single, directory, sharded.",
+            )
         return normalized
+
+    def _display_path(self, relative_path: str) -> str:
+        return str(self.path / relative_path) if not self.path.is_file() else f"{self.path}:{relative_path}"
 
 
 class _BytesHandle:

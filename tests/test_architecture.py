@@ -10,7 +10,27 @@ import pytest
 
 def test_top_level_public_api_is_intentional():
     import arclm
-    from arclm import Architecture, ArchitectureCapabilities, ArchitectureKind, ArchitectureRegistry, Dataset, Lab, Model, Runtime, Tokenizer, Trainer, architectures
+    from arclm import (
+        Architecture,
+        ArchitectureCapabilities,
+        ArchitectureKind,
+        ArchitectureRegistry,
+        ArtifactInspector,
+        ChatTemplate,
+        Dataset,
+        DatasetInspector,
+        EvaluationEngine,
+        Experiment,
+        Lab,
+        Model,
+        ModelInspector,
+        Runtime,
+        RuntimeInspector,
+        Tokenizer,
+        Trainer,
+        TrainingInspector,
+        architectures,
+    )
 
     assert set(arclm.__all__) == {
         "__version__",
@@ -18,22 +38,38 @@ def test_top_level_public_api_is_intentional():
         "ArchitectureCapabilities",
         "ArchitectureKind",
         "ArchitectureRegistry",
+        "ArtifactInspector",
+        "ChatTemplate",
         "Dataset",
+        "DatasetInspector",
+        "EvaluationEngine",
+        "Experiment",
         "Lab",
         "Model",
+        "ModelInspector",
         "Runtime",
+        "RuntimeInspector",
         "Tokenizer",
         "Trainer",
+        "TrainingInspector",
         "architectures",
     }
     assert Architecture.__module__ == "arclm.architectures.base"
     assert ArchitectureCapabilities.__module__ == "arclm.architectures.base"
     assert ArchitectureKind.NATIVE == "native"
     assert ArchitectureRegistry.__module__ == "arclm.architectures.registry"
+    assert ChatTemplate.__module__ == "arclm.tokenizers.templates"
     assert architectures.get("arclm-native").architecture_id == "arclm-native-causal-lm"
     assert Dataset.__module__.startswith("arclm.datasets")
+    assert EvaluationEngine.__module__ == "arclm.evaluation.engine"
+    assert Experiment.__module__ == "arclm.experiments.experiment"
     assert Lab.__module__ == "arclm.lab"
     assert Model.__module__ == "arclm.models.model"
+    assert ModelInspector.__module__ == "arclm.inspection.inspectors"
+    assert DatasetInspector.__module__ == "arclm.inspection.inspectors"
+    assert TrainingInspector.__module__ == "arclm.inspection.inspectors"
+    assert RuntimeInspector.__module__ == "arclm.inspection.inspectors"
+    assert ArtifactInspector.__module__ == "arclm.inspection.inspectors"
     assert Runtime.__module__.startswith("arclm.runtime")
     assert Tokenizer.__module__ == "arclm.tokenizers.base"
     assert Trainer.__module__ == "arclm.training.trainer"

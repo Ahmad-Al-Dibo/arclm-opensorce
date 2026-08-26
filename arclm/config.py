@@ -22,6 +22,13 @@ class Config:
     grad_clip: float | None = None
     max_vocab: int = 50000
     device: str = "cpu"
+    architecture: str | None = None
+    model_family: str | None = None
+    external_model_id: str | None = None
+    compatibility_backend: str | None = None
+    revision: str | None = None
+    trust_remote_code: bool = False
+    torch_dtype: str | None = None
 
     def __post_init__(self) -> None:
         self.validate()

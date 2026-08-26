@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from ..architectures import Architecture, ArchitectureCapabilities, ArchitectureKind, ArchitectureRegistry, CapabilitySupport, architectures
 from ..core.backend import BackendContract, TorchBackend
+from ..datasets import DataEngine, DataSource, FieldMapTransform, FunctionTransform, IngestionResult, ModelInputPreparer, Transform
+from ..evaluation import EvaluationContext, EvaluationEngine, EvaluationReport, MetricEvaluator
+from ..experiments import Experiment
+from ..inspection import ArtifactInspector, DatasetInspector, ModelInspector, RuntimeInspector, TrainingInspector
 from ..datasets.torch_dataset import TextDataset, create_dataloader
 from ..runtime import Runtime
-from ..tokenizers import Tokenizer, TokenizerEngine
+from ..tokenizers import ChatFormatter, ChatTemplate, Tokenizer, TokenizerEngine
 from ..training import (
     AdapterStrategy,
     BaseStrategy,
@@ -43,21 +47,37 @@ __all__ = [
     "CallbackManager",
     "CapabilitySupport",
     "CheckpointManager",
+    "ChatFormatter",
+    "ChatTemplate",
     "ConsoleProgress",
+    "DataEngine",
+    "DataSource",
     "EvaluationResult",
+    "EvaluationContext",
+    "EvaluationEngine",
+    "EvaluationReport",
     "Evaluator",
+    "Experiment",
+    "FieldMapTransform",
     "FineTuningConfig",
+    "FunctionTransform",
     "FullFineTuneStrategy",
+    "IngestionResult",
     "LossFunction",
+    "MetricEvaluator",
+    "ModelInputPreparer",
+    "ModelInspector",
     "NextTokenLoss",
     "PretrainStrategy",
     "Runtime",
+    "RuntimeInspector",
     "StepMetrics",
     "TextDataset",
     "Tokenizer",
     "TokenizerEngine",
     "TorchBackend",
     "Trainer",
+    "Transform",
     "TrainingCallback",
     "TrainingConfig",
     "TrainingEngine",
@@ -65,6 +85,9 @@ __all__ = [
     "TrainingPlan",
     "TrainingResult",
     "TrainingStrategy",
+    "TrainingInspector",
+    "ArtifactInspector",
+    "DatasetInspector",
     "architectures",
     "configure_trainable_parameters",
     "create_dataloader",

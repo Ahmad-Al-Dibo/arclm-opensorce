@@ -55,12 +55,12 @@ class Model:
         )
 
     @classmethod
-    def load(cls, source: str | Path, *, runtime: Runtime | None = None) -> "Model":
-        """Load an ArcLM `.arcmodel` artifact."""
+    def load(cls, source: str | Path, *, runtime: Runtime | None = None, **options: Any) -> "Model":
+        """Load an ArcLM artifact or registered compatibility model."""
 
         from .loading import ModelLoader
 
-        loaded = ModelLoader().load(source, runtime=runtime)
+        loaded = ModelLoader().load(source, runtime=runtime, **options)
         return cls(
             model=loaded.model,
             config=loaded.config,
@@ -68,7 +68,7 @@ class Model:
             runtime=loaded.runtime,
             tokenizer=loaded.tokenizer,
             artifact=loaded.artifact,
-            base_model_id=loaded.manifest.artifact_id,
+            base_model_id=loaded.base_model_id or str(source),
         )
 
     def save(
@@ -145,6 +145,39 @@ class Model:
             "tokenizer": self.tokenizer.strategy if self.tokenizer is not None else None,
             "base_model_id": self.base_model_id or self.architecture.architecture_id,
             "base_model_fingerprint": base_fingerprint(self.model),
+        }
+
+    def memory_plan(self, *, fine_tuning: str = "full", precision: str | None = None) -> dict[str, Any]:
+        """Return a lightweight runtime and fine-tuning memory estimate."""
+
+        dtype = precision or self.runtime.precision
+        total_parameters = 0
+        trainable_parameters = 0
+        for parameter in self.model.parameters():
+            count = int(parameter.numel())
+            total_parameters += count
+            if getattr(parameter, "requires_grad", False):
+                trainable_parameters += count
+        strategy = str(fine_tuning or "full").lower().strip().replace("-", "_")
+        if strategy in {"lora", "adapter", "peft"} and not any(".lora_" in name for name, _ in self.model.named_parameters()):
+            trainable_parameters = 0
+        compute_plan = self.runtime.compute_plan(parameters=total_parameters, trainable_parameters=trainable_parameters)
+        return {
+            "architecture_id": self.architecture.architecture_id,
+            "model_family": getattr(self.config, "model_family", None),
+            "base_model_id": self.base_model_id or getattr(self.config, "external_model_id", None),
+            "parameters": total_parameters,
+            "trainable_parameters": trainable_parameters,
+            "precision": dtype,
+            "device": self.runtime.device_name,
+            "fine_tuning_strategy": strategy,
+            "adapter_targets": list(self.architecture.adapter_targets),
+            "estimated_parameter_memory_bytes": compute_plan["estimated_parameter_memory_bytes"],
+            "estimated_gradient_memory_bytes": compute_plan["estimated_gradient_memory_bytes"],
+            "estimated_optimizer_memory_bytes": compute_plan["estimated_optimizer_memory_bytes"],
+            "estimated_total_memory_bytes": compute_plan["estimated_total_memory_bytes"],
+            "available_memory_bytes": compute_plan["available_memory_bytes"],
+            "fits_selected_device": compute_plan["fits_selected_device"],
         }
 
     def get_tensor(self, name: str):
