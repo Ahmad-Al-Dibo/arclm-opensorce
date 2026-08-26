@@ -1,12 +1,10 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-arclm/
 
 .venv/
 .test-venv/
 .test-sdist-venv/
-examples/.venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -28,22 +26,10 @@ data/*
 *.safetensors
 *.in
 
-/train.py
-/usage.py
-/setup.py
-/PROJECT_MAP.md
-.gitattributes
-/pyproject.toml
-
 notebooks/
 adapter/
-dataset/
-datasets/
 experiments/
 output/
-examples/qwen3_0_6b_sft/output/
-examples/runs/
-examples/_outputs/
 reports/
 .arclm/
 runs/

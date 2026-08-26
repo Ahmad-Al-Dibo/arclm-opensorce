@@ -8,5 +8,5 @@ Before opening a change:
 - Run `mkdocs build --strict` when changing docs.
 - Add tests or reproducible examples for new public behavior.
 - Do not claim official model support without loading, tokenizer, inference, and training/fine-tuning verification where claimed.
-- Preserve backward compatibility or document a migration path.
+- Keep the public API small and intentional; do not add compatibility aliases unless they are part of the current architecture.
 

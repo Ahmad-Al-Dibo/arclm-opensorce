@@ -1,0 +1,169 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arclm"
+dynamic = ["version"]
+description = "An ArcLM-first self-driving framework for causal language-model workflows."
+readme = "README.md"
+requires-python = ">=3.9,<3.13"
+license = "Apache-2.0"
+authors = [
+  { name = "Ahmad Al Dibo"}
+]
+keywords = [
+  "arclm",
+  "self-driving",
+  "framework",
+  "workflow",
+  "sft",
+  "llm",
+  "language-model",
+  "causal-language-model",
+  "transformer",
+  "model-artifacts",
+  "pytorch",
+  "training",
+  "fine-tuning",
+  "instruction-tuning",
+  "nlp",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "torch>=2.1,<3",
+  "safetensors>=0.4,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8",
+  "build>=1.2,<2",
+  "twine>=5,<7",
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9,<10",
+  "ruff>=0.8,<1",
+  "mypy>=1.10,<2",
+  "pip-audit>=2.7,<3",
+]
+docs = [
+  "mkdocs>=1.6,<2",
+  "mkdocs-material>=9,<10",
+]
+tokenizers = [
+  "sentencepiece>=0.2,<0.3",
+]
+all = [
+  "torch>=2.1,<3",
+  "sentencepiece>=0.2,<0.3",
+  "safetensors>=0.4,<1",
+]
+
+[project.urls]
+Homepage = "https://github.com/ahmad-al-dibo/arclm"
+Documentation = "https://github.com/ahmad-al-dibo/arclm#readme"
+Source = "https://github.com/ahmad-al-dibo/arclm"
+Issues = "https://github.com/ahmad-al-dibo/arclm/issues"
+
+[project.scripts]
+arclm = "arclm.cli:main"
+
+[tool.setuptools]
+packages = [
+  "arclm",
+  "arclm.architectures",
+  "arclm.artifacts",
+  "arclm.core",
+  "arclm.datasets",
+  "arclm.finetuning",
+  "arclm.models",
+  "arclm.research",
+  "arclm.runtime",
+  "arclm.tokenizers",
+  "arclm.training",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "arclm._version.__version__" }
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+markers = [
+  "slow: tests that download/load external models or run heavier workflows",
+  "cli: command-line interface tests",
+  "docs: documentation and documented public import tests",
+  "integration: cross-component integration tests",
+  "benchmark: benchmark smoke tests",
+  "security: security smoke tests",
+  "unit: fast unit tests",
+  "checkpoint: checkpoint-format and checkpoint-security tests",
+  "config: configuration-schema and migration tests",
+  "compatibility: public API and compatibility-policy tests",
+  "scale: dataset scale smoke tests",
+  "cpu: CPU-only certification and runtime tests",
+  "model_certification: model-family certification tests",
+  "gpu: tests that require real CUDA hardware",
+  "gpu_certification: GPU certification tests that require real CUDA hardware",
+]
+
+[tool.ruff]
+target-version = "py39"
+line-length = 160
+extend-exclude = [
+  "README.md",
+  "arclm/tokenizers/base.py",
+  "docs",
+  "site",
+  "build",
+  "dist",
+  ".venv",
+  ".test-venv",
+  ".test-sdist-venv",
+  "setup.py",
+  "train.py",
+  "usage.py",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82"]
+ignore = ["F822"]
+
+[tool.ruff.format]
+docstring-code-format = false
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+follow_imports = "skip"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_unused_ignores = false
+no_site_packages = true
+disable_error_code = ["import-untyped"]
+ignore_errors = true
+exclude = "(docs|site|build|dist|examples)"
+
+[[tool.mypy.overrides]]
+module = [
+  "arclm.core",
+  "arclm.runtime",
+]
+ignore_errors = false
+check_untyped_defs = true
+disallow_untyped_defs = true
+warn_return_any = true

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="320" viewBox="0 0 920 320" role="img" aria-labelledby="title desc">
+  <title id="title">ArcLM API flow</title>
+  <desc id="desc">Student, Professional, and Research APIs all flow into one ArcLM engine and runtime backend.</desc>
+  <rect width="920" height="320" fill="#f8fafc"/>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" fill="#111827">
+    <rect x="40" y="36" width="240" height="54" rx="8" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="64" y="69" font-weight="700">Student API: Lab</text>
+    <rect x="340" y="36" width="240" height="54" rx="8" fill="#ffffff" stroke="#0891b2" stroke-width="2"/>
+    <text x="364" y="69" font-weight="700">Professional API</text>
+    <rect x="640" y="36" width="240" height="54" rx="8" fill="#ffffff" stroke="#7c3aed" stroke-width="2"/>
+    <text x="664" y="69" font-weight="700">Research API</text>
+    <rect x="190" y="140" width="540" height="58" rx="8" fill="#ecfeff" stroke="#0e7490" stroke-width="2"/>
+    <text x="286" y="174" font-weight="700">Shared ArcLM Model, Dataset, Tokenizer, Trainer</text>
+    <rect x="230" y="236" width="460" height="54" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+    <text x="314" y="269" font-weight="700">TrainingEngine -> Runtime Backend</text>
+    <path d="M160 92v28c0 16 13 29 29 29" fill="none" stroke="#334155" stroke-width="2"/>
+    <path d="M460 92v48" fill="none" stroke="#334155" stroke-width="2"/>
+    <path d="M760 92v28c0 16-13 29-29 29" fill="none" stroke="#334155" stroke-width="2"/>
+    <path d="M460 198v38" fill="none" stroke="#334155" stroke-width="2"/>
+    <polygon points="454,120 466,120 460,132" fill="#334155"/>
+    <polygon points="454,228 466,228 460,240" fill="#334155"/>
+  </g>
+</svg>
